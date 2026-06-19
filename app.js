@@ -12,6 +12,7 @@ const formMessage = document.querySelector("#form-message");
 const materialInput = document.querySelector("#material");
 const subjectInput = document.querySelector("#subject");
 const gradeInput = document.querySelector("#grade");
+const targetLevelInput = document.querySelector("#target-level");
 const toast = document.querySelector("#toast");
 
 let cards = [];
@@ -162,7 +163,7 @@ function renderReady() {
     .join(" / ");
 
   document.querySelector("#ready-title").textContent = `已生成 ${cards.length} 张复习卡片`;
-  document.querySelector("#ready-meta").textContent = `科目：${subjectInput.value}　年级：${gradeInput.value}　难度分布：${levelText}`;
+  document.querySelector("#ready-meta").textContent = `科目：${subjectInput.value}　年级：${gradeInput.value}　目标难度：${targetLevelInput.value}　难度分布：${levelText}`;
   document.querySelector("#preview-card").innerHTML = `
     <span class="difficulty">卡片 1 · ${cards[0].level}</span>
     <div class="card-focus">
@@ -186,7 +187,7 @@ function renderStudyCard() {
   const progressText = `${currentIndex + 1} / ${activeIndexes.length}`;
 
   document.querySelector("#progress-text").textContent = progressText;
-  const status = card.status ? `<span class="status-pill">状态：${card.status === "known" ? "我会了" : "再复习"}</span>` : "";
+  const status = card.status ? `<span class="status-pill">状态：${card.status === "known" ? "我会了" : "不会"}</span>` : "";
 
   if (card.revealed || card.answered) {
     document.querySelector("#study-card").innerHTML = `
@@ -259,17 +260,17 @@ function renderSummary() {
   document.querySelector("#summary-stats").innerHTML = `
     <div class="stat">总卡片<strong>${cards.length}</strong></div>
     <div class="stat">已掌握<strong>${known}</strong></div>
-    <div class="stat">需再复习<strong>${review}</strong></div>
+    <div class="stat">不会<strong>${review}</strong></div>
     <div class="stat">掌握率<strong>${rate}%</strong></div>
   `;
 
   const reviewCards = cards.filter((card) => card.status === "review");
   const reviewOnlyButton = document.querySelector("#review-only");
   reviewOnlyButton.disabled = false;
-  reviewOnlyButton.textContent = reviewCards.length === 0 ? "重新生成卡片" : "只复习这些";
+  reviewOnlyButton.textContent = reviewCards.length === 0 ? "重新生成卡片" : "只练不会的";
   reviewOnlyButton.dataset.empty = reviewCards.length === 0 ? "true" : "false";
   document.querySelector("#review-list").innerHTML = reviewCards.length
-    ? `<h3>需要再复习</h3><ol>${reviewCards.map((card) => `<li>${escapeHtml(card.question)}</li>`).join("")}</ol>`
+    ? `<h3>不会的卡片</h3><ol>${reviewCards.map((card) => `<li>${escapeHtml(card.question)}</li>`).join("")}</ol>`
     : `<p class="subtle">本轮已全部掌握。</p>`;
 }
 
@@ -388,6 +389,7 @@ form.addEventListener("submit", async (event) => {
   const payload = {
     subject: subjectInput.value,
     grade: gradeInput.value,
+    targetLevel: targetLevelInput.value,
     material,
   };
 
@@ -462,7 +464,7 @@ document.querySelector("#review-only").addEventListener("click", () => {
 
   refreshReviewIndexes();
   if (reviewIndexes.length === 0) {
-    showToast("没有需要再复习的卡片。");
+    showToast("没有不会的卡片。");
     return;
   }
   reviewMode = true;
