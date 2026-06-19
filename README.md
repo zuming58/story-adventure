@@ -53,8 +53,11 @@ npm.cmd run
 ```text
 OPENAI_API_KEY=你的 OpenAI API Key
 OPENAI_MODEL=gpt-4.1-mini
+OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
 未配置 `OPENAI_API_KEY` 时，前端会自动使用演示卡片，方便活动现场先展示流程。
 
-部署到 Vercel 时，也需要在项目环境变量中配置 `OPENAI_API_KEY` 和可选的 `OPENAI_MODEL`。
+如果使用中转 API，把 `OPENAI_BASE_URL` 改成中转服务的 `/v1` 地址。
+
+部署到 Vercel 时，也需要在项目环境变量中配置 `OPENAI_API_KEY`、`OPENAI_MODEL` 和 `OPENAI_BASE_URL`。
