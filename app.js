@@ -12,7 +12,7 @@ const formMessage = document.querySelector("#form-message");
 const materialInput = document.querySelector("#material");
 const subjectInput = document.querySelector("#subject");
 const gradeInput = document.querySelector("#grade");
-const targetLevelInput = document.querySelector("#target-level");
+const levelOptions = [...document.querySelectorAll(".level-option")];
 const toast = document.querySelector("#toast");
 
 let cards = [];
@@ -163,7 +163,7 @@ function renderReady() {
     .join(" / ");
 
   document.querySelector("#ready-title").textContent = `已生成 ${cards.length} 张复习卡片`;
-  document.querySelector("#ready-meta").textContent = `科目：${subjectInput.value}　年级：${gradeInput.value}　目标难度：${targetLevelInput.value}　难度分布：${levelText}`;
+  document.querySelector("#ready-meta").textContent = `科目：${subjectInput.value}　年级：${gradeInput.value}　目标难度：${getTargetLevel()}　难度分布：${levelText}`;
   document.querySelector("#preview-card").innerHTML = `
     <span class="difficulty">卡片 1 · ${cards[0].level}</span>
     <div class="card-focus">
@@ -374,6 +374,13 @@ document.querySelectorAll(".upcoming").forEach((button) => {
   });
 });
 
+levelOptions.forEach((button) => {
+  button.addEventListener("click", () => {
+    levelOptions.forEach((option) => option.classList.remove("active"));
+    button.classList.add("active");
+  });
+});
+
 form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const material = materialInput.value.trim();
@@ -389,7 +396,7 @@ form.addEventListener("submit", async (event) => {
   const payload = {
     subject: subjectInput.value,
     grade: gradeInput.value,
-    targetLevel: targetLevelInput.value,
+    targetLevel: getTargetLevel(),
     material,
   };
 
@@ -493,4 +500,8 @@ function getFallbackMessage(error) {
   }
 
   return "AI 暂时不可用，当前使用演示卡片继续体验。";
+}
+
+function getTargetLevel() {
+  return document.querySelector(".level-option.active")?.dataset.level || "中等";
 }
