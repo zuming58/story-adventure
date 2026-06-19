@@ -155,9 +155,11 @@ function renderReady() {
   document.querySelector("#ready-title").textContent = `已生成 ${cards.length} 张复习卡片`;
   document.querySelector("#ready-meta").textContent = `科目：${subjectInput.value}　年级：${gradeInput.value}　难度分布：${levelText}`;
   document.querySelector("#preview-card").innerHTML = `
-    <div class="card-visual" aria-hidden="true">?</div>
     <span class="difficulty">卡片 1 · ${cards[0].level}</span>
-    <p class="card-question">${escapeHtml(cards[0].question)}</p>
+    <div class="card-focus">
+      <div class="card-visual" aria-hidden="true">?</div>
+      <p class="card-question">${escapeHtml(cards[0].question)}</p>
+    </div>
   `;
 }
 
