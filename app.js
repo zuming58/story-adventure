@@ -180,7 +180,7 @@ function renderStudyCard() {
   if (card.revealed || card.answered) {
     document.querySelector("#study-card").innerHTML = `
       ${status || `<span class="difficulty">难度：${escapeHtml(card.level)}</span>`}
-      <div>
+      <div class="card-focus">
         <div class="card-visual answer" aria-hidden="true">✓</div>
         <p class="card-answer">${escapeHtml(card.answer)}</p>
         <p class="hint">提示：${escapeHtml(card.hint || "试着用自己的话复述答案。")}</p>
@@ -190,7 +190,7 @@ function renderStudyCard() {
   } else {
     document.querySelector("#study-card").innerHTML = `
       <span class="difficulty">难度：${escapeHtml(card.level)}</span>
-      <div>
+      <div class="card-focus">
         <div class="card-visual" aria-hidden="true">?</div>
         <p class="card-question">${escapeHtml(card.question)}</p>
         <button id="reveal-answer" class="primary-action" type="button">查看答案</button>
