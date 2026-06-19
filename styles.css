@@ -240,44 +240,54 @@ button:disabled {
 .input-actions {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 14px;
 }
 
 .input-tool-row {
-  min-height: 58px;
-  display: grid;
-  grid-template-columns: 1fr 70px 96px;
+  min-height: 60px;
+  display: flex;
   align-items: center;
+  justify-content: center;
   gap: 12px;
 }
 
 .icon-action {
   width: 56px;
   height: 56px;
-  grid-column: 2;
   border: 1px solid var(--line);
   border-radius: 50%;
   background: #fff;
   color: var(--primary-dark);
   box-shadow: 0 10px 28px rgba(29, 36, 51, 0.1);
+  transition: background 0.16s ease, color 0.16s ease, transform 0.16s ease, border-color 0.16s ease;
 }
 
-.icon-action span {
+.icon-action svg {
   display: block;
-  font-size: 14px;
-  font-weight: 800;
-  line-height: 1;
+  width: 25px;
+  height: 25px;
+  margin: 0 auto;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
-.photo-action {
-  grid-column: 3;
-  min-height: 46px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: #fff;
-  color: var(--primary-dark);
-  font-weight: 800;
-  box-shadow: 0 10px 28px rgba(29, 36, 51, 0.08);
+.icon-action:hover,
+.icon-action:focus-visible,
+.icon-action.pressed {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #fff;
+}
+
+.icon-action:active {
+  transform: scale(0.94);
+}
+
+.generate-action {
+  width: 100%;
 }
 
 .loader {

@@ -356,6 +356,8 @@ function escapeHtml(value) {
 
 document.querySelectorAll(".upcoming").forEach((button) => {
   button.addEventListener("click", () => {
+    button.classList.add("pressed");
+    window.setTimeout(() => button.classList.remove("pressed"), 260);
     showToast(`${button.dataset.upcoming}将在下一版支持，请先使用文字输入。`);
   });
 });

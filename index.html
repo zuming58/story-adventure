@@ -60,15 +60,23 @@
 
           <p id="form-message" class="message" role="status"></p>
           <div class="bottom-actions input-actions">
-            <button class="primary-action" type="submit">生成复习卡片</button>
             <div class="input-tool-row">
               <button class="icon-action voice-action upcoming" type="button" data-upcoming="语音输入" aria-label="语音输入">
-                <span aria-hidden="true">语音</span>
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
+                  <path d="M19 11a7 7 0 0 1-14 0"></path>
+                  <path d="M12 18v3"></path>
+                  <path d="M8 21h8"></path>
+                </svg>
               </button>
-              <button class="photo-action upcoming" type="button" data-upcoming="拍照输入" aria-label="拍照输入">
-                <span aria-hidden="true">拍照</span>
+              <button class="icon-action photo-action upcoming" type="button" data-upcoming="拍照输入" aria-label="拍照输入">
+                <svg aria-hidden="true" viewBox="0 0 24 24">
+                  <path d="M14.5 4 16 7h3a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V9a2 2 0 0 1 2-2h3l1.5-3h5Z"></path>
+                  <circle cx="12" cy="13" r="3"></circle>
+                </svg>
               </button>
             </div>
+            <button class="primary-action generate-action" type="submit">生成复习卡片</button>
           </div>
         </form>
       </section>
