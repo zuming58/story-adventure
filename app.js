@@ -396,6 +396,12 @@ form.addEventListener("submit", async (event) => {
     cards = generated.map(normalizeCard).filter((card) => card.question && card.answer);
     showToast("已生成真实 AI 复习卡片。");
   } catch (error) {
+    if (error?.status === 400) {
+      formMessage.textContent = error.message || "请补充更完整的学习内容。";
+      showView("input");
+      return;
+    }
+
     const fallback = buildFallbackCards(material, subjectInput.value, gradeInput.value);
     cards = fallback.map(normalizeCard);
     showToast(getFallbackMessage(error));
@@ -482,10 +488,6 @@ setupDemoToolbar();
 function getFallbackMessage(error) {
   if (error?.status === 503) {
     return "当前使用演示卡片。配置 AI Key 后可生成真实内容。";
-  }
-
-  if (error?.status === 400) {
-    return "学习材料还不够完整，当前先展示演示卡片。";
   }
 
   return "AI 暂时不可用，当前使用演示卡片继续体验。";
