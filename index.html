@@ -28,7 +28,7 @@
           <p>把课文、知识点、笔记或错题变成可以自测的复习卡片。</p>
         </header>
 
-        <form id="material-form" class="panel">
+        <form id="material-form" class="panel app-panel">
           <div class="field-grid">
             <label>
               <span>科目</span>
@@ -53,19 +53,23 @@
             </label>
           </div>
 
-          <div class="input-modes" aria-label="输入方式">
-            <button class="mode active" type="button" aria-pressed="true">文本输入</button>
-            <button class="mode upcoming" type="button" data-upcoming="拍照输入">拍照输入</button>
-            <button class="mode upcoming" type="button" data-upcoming="语音输入">语音输入</button>
-          </div>
-
           <label class="material-label" for="material">
             <span>学习材料</span>
             <textarea id="material" name="material" rows="9" placeholder="粘贴课文、知识点、笔记或错题内容..."></textarea>
           </label>
 
           <p id="form-message" class="message" role="status"></p>
-          <button class="primary-action" type="submit">生成复习卡片</button>
+          <div class="bottom-actions input-actions">
+            <button class="primary-action" type="submit">生成复习卡片</button>
+            <div class="input-tool-row">
+              <button class="icon-action voice-action upcoming" type="button" data-upcoming="语音输入" aria-label="语音输入">
+                <span aria-hidden="true">语音</span>
+              </button>
+              <button class="photo-action upcoming" type="button" data-upcoming="拍照输入" aria-label="拍照输入">
+                <span aria-hidden="true">拍照</span>
+              </button>
+            </div>
+          </div>
         </form>
       </section>
 
@@ -78,12 +82,12 @@
         </div>
       </section>
 
-      <section id="ready-view" class="view" aria-labelledby="ready-title">
-        <div class="panel">
+      <section id="ready-view" class="view phone-stage" aria-labelledby="ready-title">
+        <div class="panel app-panel">
           <h2 id="ready-title">已生成复习卡片</h2>
           <p id="ready-meta" class="subtle"></p>
           <div id="preview-card" class="preview-card"></div>
-          <div class="action-row">
+          <div class="bottom-actions action-row">
             <button id="start-study" class="primary-action" type="button">开始自测</button>
             <button id="edit-material" class="secondary-action" type="button">返回修改</button>
           </div>
@@ -101,7 +105,7 @@
         </div>
       </section>
 
-      <section id="study-view" class="view" aria-labelledby="study-title">
+      <section id="study-view" class="view phone-stage" aria-labelledby="study-title">
         <header class="study-header">
           <h2 id="study-title">卡片自测</h2>
           <p id="progress-text"></p>
@@ -109,21 +113,23 @@
 
         <article id="study-card" class="study-card"></article>
 
-        <div id="answer-actions" class="answer-actions hidden">
-          <button id="mark-known" class="primary-action" type="button">我会了</button>
-          <button id="mark-review" class="warning-action" type="button">再复习</button>
-        </div>
+        <div class="study-bottom">
+          <div id="answer-actions" class="answer-actions hidden">
+            <button id="mark-known" class="primary-action" type="button">我会了</button>
+            <button id="mark-review" class="warning-action" type="button">再复习</button>
+          </div>
 
-        <div class="nav-row">
-          <button id="prev-card" class="secondary-action" type="button">上一张</button>
-          <button id="next-card" class="secondary-action" type="button">下一张</button>
-        </div>
+          <div class="nav-row">
+            <button id="prev-card" class="secondary-action" type="button">上一张</button>
+            <button id="next-card" class="secondary-action" type="button">下一张</button>
+          </div>
 
-        <button id="show-summary" class="primary-action full hidden" type="button">查看总结</button>
+          <button id="show-summary" class="primary-action full hidden" type="button">查看总结</button>
+        </div>
       </section>
 
-      <section id="summary-view" class="view" aria-labelledby="summary-title">
-        <div class="panel">
+      <section id="summary-view" class="view phone-stage" aria-labelledby="summary-title">
+        <div class="panel app-panel">
           <h2 id="summary-title">本次复习总结</h2>
           <div id="summary-stats" class="stats-grid"></div>
           <div id="review-list" class="review-list"></div>

@@ -155,6 +155,7 @@ function renderReady() {
   document.querySelector("#ready-title").textContent = `已生成 ${cards.length} 张复习卡片`;
   document.querySelector("#ready-meta").textContent = `科目：${subjectInput.value}　年级：${gradeInput.value}　难度分布：${levelText}`;
   document.querySelector("#preview-card").innerHTML = `
+    <div class="card-visual" aria-hidden="true">?</div>
     <span class="difficulty">卡片 1 · ${cards[0].level}</span>
     <p class="card-question">${escapeHtml(cards[0].question)}</p>
   `;
@@ -180,6 +181,7 @@ function renderStudyCard() {
     document.querySelector("#study-card").innerHTML = `
       ${status || `<span class="difficulty">难度：${escapeHtml(card.level)}</span>`}
       <div>
+        <div class="card-visual answer" aria-hidden="true">✓</div>
         <p class="card-answer">${escapeHtml(card.answer)}</p>
         <p class="hint">提示：${escapeHtml(card.hint || "试着用自己的话复述答案。")}</p>
       </div>
@@ -189,6 +191,7 @@ function renderStudyCard() {
     document.querySelector("#study-card").innerHTML = `
       <span class="difficulty">难度：${escapeHtml(card.level)}</span>
       <div>
+        <div class="card-visual" aria-hidden="true">?</div>
         <p class="card-question">${escapeHtml(card.question)}</p>
         <button id="reveal-answer" class="primary-action" type="button">查看答案</button>
       </div>
@@ -351,7 +354,7 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
-document.querySelectorAll(".mode.upcoming").forEach((button) => {
+document.querySelectorAll(".upcoming").forEach((button) => {
   button.addEventListener("click", () => {
     showToast(`${button.dataset.upcoming}将在下一版支持，请先使用文字输入。`);
   });
