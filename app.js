@@ -377,8 +377,8 @@ form.addEventListener("submit", async (event) => {
   event.preventDefault();
   const material = materialInput.value.trim();
 
-  if (material.length < 12) {
-    formMessage.textContent = "请补充更完整的课文、知识点、笔记或错题内容。";
+  if (material.length < 3) {
+    formMessage.textContent = "请输入至少 3 个字的学习内容。";
     return;
   }
 
