@@ -27,6 +27,8 @@ const server = createServer(async (request, response) => {
 
 server.listen(port, () => {
   console.log(`AI 学习卡片生成器已启动: http://localhost:${port}`);
+  console.log(`项目目录: ${rootDir}`);
+  console.log(process.env.OPENAI_API_KEY ? "AI 状态: 已配置 OPENAI_API_KEY" : "AI 状态: 未配置 OPENAI_API_KEY，将使用前端演示卡片");
 });
 
 async function handleGenerateCards(request, response) {

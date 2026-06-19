@@ -133,7 +133,16 @@ async function requestCards(payload) {
   });
 
   if (!response.ok) {
-    throw new Error("request failed");
+    let message = "request failed";
+    try {
+      const errorData = await response.json();
+      message = errorData.error || message;
+    } catch (error) {
+      message = response.statusText || message;
+    }
+    const error = new Error(message);
+    error.status = response.status;
+    throw error;
   }
 
   const data = await response.json();
@@ -385,10 +394,11 @@ form.addEventListener("submit", async (event) => {
   try {
     const generated = await requestCards(payload);
     cards = generated.map(normalizeCard).filter((card) => card.question && card.answer);
+    showToast("已生成真实 AI 复习卡片。");
   } catch (error) {
     const fallback = buildFallbackCards(material, subjectInput.value, gradeInput.value);
     cards = fallback.map(normalizeCard);
-    showToast("当前使用演示卡片。接入 AI Key 后会生成真实内容。");
+    showToast(getFallbackMessage(error));
   }
 
   if (cards.length === 0) {
@@ -468,3 +478,15 @@ document.querySelector("#restart").addEventListener("click", () => {
 });
 
 setupDemoToolbar();
+
+function getFallbackMessage(error) {
+  if (error?.status === 503) {
+    return "当前使用演示卡片。配置 AI Key 后可生成真实内容。";
+  }
+
+  if (error?.status === 400) {
+    return "学习材料还不够完整，当前先展示演示卡片。";
+  }
+
+  return "AI 暂时不可用，当前使用演示卡片继续体验。";
+}

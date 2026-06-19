@@ -17,6 +17,7 @@
 推荐使用本地开发服务：
 
 ```powershell
+Set-Location E:\Codex\children
 npm.cmd run dev
 ```
 
@@ -35,6 +36,15 @@ http://localhost:3000?demo=1
 顶部会出现“UI 预览”工具条，可以切换输入页、生成中、生成成功、生成失败、自测正面、自测背面、已答回看、复习总结、全部掌握等界面状态。
 
 如果只想看静态界面，也可以直接用浏览器打开 `index.html`；此时 AI 接口不可用，会自动使用演示卡片。
+
+如果看到 `Missing script: "dev"`，说明命令不在项目目录里运行。先执行：
+
+```powershell
+Set-Location E:\Codex\children
+npm.cmd run
+```
+
+确认输出里能看到 `dev`，再执行 `npm.cmd run dev`。
 
 ## AI 生成配置
 
