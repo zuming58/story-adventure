@@ -14,21 +14,37 @@
 
 ## 本地预览
 
-静态前端可以直接用浏览器打开 `index.html`。
+推荐使用本地开发服务：
+
+```powershell
+npm.cmd run dev
+```
+
+然后打开：
+
+```text
+http://localhost:3000
+```
 
 UI 阶段预览可以打开：
 
 ```text
-index.html?demo=1
+http://localhost:3000?demo=1
 ```
 
 顶部会出现“UI 预览”工具条，可以切换输入页、生成中、生成成功、生成失败、自测正面、自测背面、已答回看、复习总结、全部掌握等界面状态。
 
-如果要测试 `/api/generate-cards`，建议部署到 Vercel，并配置环境变量：
+如果只想看静态界面，也可以直接用浏览器打开 `index.html`；此时 AI 接口不可用，会自动使用演示卡片。
+
+## AI 生成配置
+
+复制 `.env.example` 为 `.env.local`，并配置环境变量：
 
 ```text
 OPENAI_API_KEY=你的 OpenAI API Key
 OPENAI_MODEL=gpt-4.1-mini
 ```
 
-未配置 AI 接口时，前端会自动使用演示卡片，方便活动现场先展示流程。
+未配置 `OPENAI_API_KEY` 时，前端会自动使用演示卡片，方便活动现场先展示流程。
+
+部署到 Vercel 时，也需要在项目环境变量中配置 `OPENAI_API_KEY` 和可选的 `OPENAI_MODEL`。
