@@ -4,3 +4,9 @@ node_modules/
 .vercel/
 dist/
 coverage/
+story-adventure/generated/
+backups/
+presentation-draft/
+presentation-handoff/
+presentation-handoff-check/
+presentation-handoff.zip

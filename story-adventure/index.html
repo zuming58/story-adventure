@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>AI 互动故事冒险机</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <nav id="demo-toolbar" class="demo-toolbar hidden" aria-label="UI 状态预览">
+        <span>UI 预览</span>
+        <button type="button" data-demo="cover">封面</button>
+        <button type="button" data-demo="home">输入页</button>
+        <button type="button" data-demo="loading">生成中</button>
+        <button type="button" data-demo="scene">故事幕</button>
+        <button type="button" data-demo="writing">续写中</button>
+        <button type="button" data-demo="ending">结局</button>
+        <button type="button" data-demo="name">名字页</button>
+        <button type="button" data-demo="book">故事书</button>
+        <button type="button" data-demo="error">失败页</button>
+      </nav>
+
+      <section id="cover-view" class="view active" aria-labelledby="cover-title">
+        <div class="cover-content">
+          <div class="cover-title-group">
+            <p class="eyebrow">扫码开启冒险</p>
+            <h1 id="cover-title">AI 互动故事冒险机</h1>
+            <p>和小鹿、小兔子一起走进会发光的故事书</p>
+          </div>
+          <div class="cover-start-group">
+            <div class="fake-qr" aria-label="演示二维码">
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+              <span></span>
+            </div>
+            <button id="enter-story" class="primary-action cover-action" type="button">开始冒险</button>
+            <button id="resume-story" class="secondary-action cover-resume hidden" type="button">继续上次故事</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="home-view" class="view" aria-labelledby="app-title">
+        <header class="hero">
+          <p class="eyebrow">写下你的开头</p>
+          <h1 id="app-title">AI 互动故事冒险机</h1>
+          <p>说一个开头，让 AI 陪你把故事玩下去。</p>
+        </header>
+
+        <section class="panel app-panel">
+          <div class="field">
+            <span class="field-title">故事类型</span>
+            <div id="genre-options" class="choice-grid" aria-label="故事类型">
+              <button class="choice active" type="button" data-genre="奇幻">奇幻</button>
+              <button class="choice" type="button" data-genre="校园">校园</button>
+              <button class="choice" type="button" data-genre="科幻">科幻</button>
+              <button class="choice" type="button" data-genre="侦探">侦探</button>
+              <button class="choice" type="button" data-genre="搞笑">搞笑</button>
+            </div>
+          </div>
+
+          <label class="field" for="story-start">
+            <span class="field-title">故事开头</span>
+            <textarea id="story-start" rows="7" placeholder="例如：我在储物柜里发现了一张会发光的地图..."></textarea>
+          </label>
+
+          <div class="field">
+            <span class="field-title">示例开头</span>
+            <div class="example-list">
+              <button class="example" type="button" data-start="我在学校储物柜里发现了一张会发光的地图。">会发光的地图</button>
+              <button class="example" type="button" data-start="一只会说话的猫在雨夜敲开了我的窗户。">会说话的猫</button>
+              <button class="example" type="button" data-start="今天放学后，天空突然变成了绿色。">绿色的天空</button>
+            </div>
+          </div>
+
+          <p id="home-message" class="message" role="status"></p>
+
+          <div class="bottom-actions">
+            <button id="voice-input" class="round-action" type="button" aria-label="语音输入">
+              <svg aria-hidden="true" viewBox="0 0 24 24">
+                <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
+                <path d="M19 11a7 7 0 0 1-14 0"></path>
+                <path d="M12 18v3"></path>
+                <path d="M8 21h8"></path>
+              </svg>
+            </button>
+            <button id="start-adventure" class="primary-action" type="button">开始冒险</button>
+          </div>
+        </section>
+      </section>
+
+      <section id="loading-view" class="view" aria-labelledby="loading-title">
+        <div class="panel centered">
+          <h2 id="loading-title">正在打开故事传送门...</h2>
+          <div class="feature-illustration">
+            <img src="assets/loading-portal.png" alt="小鹿和小兔子正在打开故事传送门">
+          </div>
+          <div class="book-loader" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <p id="loading-text">AI 正在根据你的开头编织第一幕。</p>
+          <button id="cancel-loading" class="secondary-action" type="button">返回修改</button>
+        </div>
+      </section>
+
+      <section id="scene-view" class="view" aria-labelledby="scene-title">
+        <header class="scene-header">
+          <div>
+            <p id="scene-count" class="eyebrow">第 1 幕 / 共 5 幕</p>
+            <h2 id="scene-title">会发光的地图</h2>
+          </div>
+          <span id="scene-genre" class="pill">奇幻</span>
+        </header>
+
+        <article class="story-card">
+          <p id="previous-choice" class="previous-choice hidden"></p>
+          <p id="scene-text" class="story-text"></p>
+          <div id="scene-image" class="illustration" aria-label="本幕插图"></div>
+          <div id="choice-area" class="choices"></div>
+        </article>
+      </section>
+
+      <section id="writing-view" class="view" aria-labelledby="writing-title">
+        <div class="panel centered">
+          <h2 id="writing-title">正在续写下一幕...</h2>
+          <div class="feature-illustration compact">
+            <img src="assets/loading-portal.png" alt="故事正在续写">
+          </div>
+          <div class="quill-loader" aria-hidden="true">✦</div>
+          <p id="chosen-option-text">你的选择：去旧钟楼看看</p>
+        </div>
+      </section>
+
+      <section id="ending-view" class="view" aria-labelledby="ending-title">
+        <article class="panel app-panel">
+          <p class="eyebrow">故事结局</p>
+          <h2 id="ending-title">会发光的地图</h2>
+          <span id="ending-type" class="pill">友情结局</span>
+          <div id="ending-image" class="illustration ending-illustration" aria-label="结局插图"></div>
+          <p id="ending-text" class="story-text"></p>
+          <div class="bottom-actions single">
+            <button id="make-book" class="primary-action" type="button">生成我的故事书</button>
+            <button id="review-story" class="secondary-action" type="button">回看故事</button>
+          </div>
+        </article>
+      </section>
+
+      <section id="name-view" class="view" aria-labelledby="name-title">
+        <article class="panel app-panel name-panel">
+          <p class="eyebrow">制作专属故事书</p>
+          <h2 id="name-title">写上你的名字</h2>
+          <p class="story-text">故事书会把这次冒险做成你的专属作品。</p>
+          <label class="field" for="player-name">
+            <span class="field-title">我的名字</span>
+            <input id="player-name" class="name-input" type="text" maxlength="12" placeholder="比如：小宇">
+          </label>
+          <p id="name-message" class="message" role="status"></p>
+          <div class="bottom-actions single">
+            <button id="confirm-book" class="primary-action" type="button">生成专属故事书</button>
+            <button id="skip-name" class="secondary-action" type="button">暂时跳过</button>
+          </div>
+        </article>
+      </section>
+
+      <section id="book-view" class="view" aria-labelledby="book-title">
+        <header class="book-header">
+          <p class="eyebrow">我的故事书</p>
+          <h2 id="book-title">会发光的地图</h2>
+          <p id="book-meta"></p>
+        </header>
+        <div class="illustration book-cover" aria-label="故事书封面">
+          <img class="illustration-img" src="assets/book-ending.png" alt="小鹿、小兔子和孩子们围着发光故事书">
+        </div>
+        <div id="book-pages" class="book-pages"></div>
+        <section class="panel ending-panel">
+          <h3>结局</h3>
+          <p id="book-ending"></p>
+        </section>
+        <div class="bottom-actions single">
+          <button id="restart-story" class="primary-action" type="button">重新开始</button>
+          <button id="save-story" class="secondary-action" type="button">导出长图</button>
+        </div>
+      </section>
+
+      <section id="error-view" class="view" aria-labelledby="error-title">
+        <div class="panel centered">
+          <h2 id="error-title">故事生成失败</h2>
+          <p id="error-message">AI 暂时没能生成完整故事。你可以重试，或者换一个更具体的开头。</p>
+          <div class="action-row">
+            <button id="error-edit" class="secondary-action" type="button">返回修改</button>
+            <button id="error-retry" class="primary-action" type="button">再试一次</button>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" role="status" aria-live="polite"></div>
+    <script src="app.js"></script>
+  </body>
+</html>
