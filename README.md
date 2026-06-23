@@ -56,8 +56,12 @@ IMAGE_MODEL=gpt-image-2
 IMAGE_SIZE=1024x1024
 IMAGE_TIMEOUT_MS=120000
 IMAGE_JOB_TIMEOUT_MS=300000
+IMAGE_MODE=each_scene
+IMAGE_STORAGE_MODE=browser
 ```
 
-未配置文本 Key 时，前端会使用演示故事；未配置图片 Key 或图片生成失败时，会保留默认插图，不阻断故事流程。故事插图现在通过后台任务生成，完成后会保存到 `story-adventure/generated/` 并自动回填到故事书里；该目录不会提交到 Git。
+未配置文本 Key 时，前端会使用演示故事；未配置图片 Key 或图片生成失败时，会保留默认插图，不阻断故事流程。
 
 故事书页的“导出长图”会在浏览器里生成 PNG，电脑端自动下载，手机端会尽量打开长图方便长按保存。
+
+`develop` 分支保留本地演示版的后台图片任务和 `story-adventure/generated/` 保存能力。`deploy-vercel` 分支用于线上部署优化：前端直接调用图片接口并把图片保存到浏览器状态，不依赖 `story-adventure/generated/`。`IMAGE_MODE=each_scene` 表示每幕生成图片；如现场并发压力较大，可在 Vercel 改为 `cover_only`。

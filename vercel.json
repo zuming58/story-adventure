@@ -1,0 +1,20 @@
+{
+  "rewrites": [
+    {
+      "source": "/",
+      "destination": "/story-adventure/index.html"
+    },
+    {
+      "source": "/story-adventure",
+      "destination": "/story-adventure/index.html"
+    }
+  ],
+  "functions": {
+    "api/story-adventure/image.js": {
+      "maxDuration": 60
+    },
+    "api/story-adventure/scene.js": {
+      "maxDuration": 60
+    }
+  }
+}

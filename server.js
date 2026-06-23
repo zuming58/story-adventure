@@ -33,6 +33,11 @@ const server = createServer(async (request, response) => {
       return;
     }
 
+    if (url.pathname === "/api/story-adventure/config") {
+      await handleStoryConfig(request, response);
+      return;
+    }
+
     if (url.pathname === "/api/story-adventure/image-jobs") {
       await handleCreateImageJob(request, response);
       return;
@@ -80,6 +85,22 @@ async function handleStoryImage(request, response) {
   const body = await readJsonBody(request);
   const result = await generateStoryImage(body);
   sendJson(response, 200, result);
+}
+
+async function handleStoryConfig(request, response) {
+  if (request.method !== "GET") {
+    sendJson(response, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  sendJson(response, 200, getPublicStoryConfig());
+}
+
+function getPublicStoryConfig() {
+  return {
+    imageMode: process.env.IMAGE_MODE || "each_scene",
+    imageStorageMode: process.env.IMAGE_STORAGE_MODE || "browser",
+  };
 }
 
 async function handleCreateImageJob(request, response) {

@@ -1,5 +1,9 @@
 const TOTAL_ACTS = 5;
 const STORAGE_KEY = "storyAdventure.currentStory.v1";
+const runtimeConfig = {
+  imageMode: "each_scene",
+  imageStorageMode: "browser",
+};
 
 const views = {
   cover: document.querySelector("#cover-view"),
@@ -119,7 +123,41 @@ function saveStoryState() {
     updateResumeButton();
   } catch (error) {
     console.warn(error);
+    if (dropGeneratedImagesForStorage()) {
+      try {
+        localStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({
+            ...state,
+            savedAt: Date.now(),
+          }),
+        );
+        showToast("图片较大，已保留故事文字，导出时会使用默认图。");
+        updateResumeButton();
+      } catch (retryError) {
+        console.warn(retryError);
+      }
+    }
   }
+}
+
+function dropGeneratedImagesForStorage() {
+  let changed = false;
+  state.scenes.forEach((scene) => {
+    if (scene.generatedImageUrl && scene.imageUrl === scene.generatedImageUrl) {
+      scene.generatedImageUrl = "";
+      scene.imageUrl = "assets/story-choice.png";
+      changed = true;
+    }
+  });
+
+  if (state.ending?.generatedImageUrl && state.ending.imageUrl === state.ending.generatedImageUrl) {
+    state.ending.generatedImageUrl = "";
+    state.ending.imageUrl = "assets/book-ending.png";
+    changed = true;
+  }
+
+  return changed;
 }
 
 function loadSavedStory() {
@@ -172,7 +210,6 @@ function restoreSavedStory() {
   state = saved;
   storyStartInput.value = state.opening || "";
   setActiveGenre(state.genre);
-  Object.keys(state.imageJobs || {}).forEach((jobId) => pollImageJob(jobId));
 
   if (state.ending) {
     showBook();
@@ -195,6 +232,19 @@ function showView(name) {
   Object.values(views).forEach((view) => view.classList.remove("active"));
   views[name].classList.add("active");
   window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+async function loadRuntimeConfig() {
+  try {
+    const response = await fetch("/api/story-adventure/config");
+    const config = await response.json().catch(() => ({}));
+    if (response.ok) {
+      runtimeConfig.imageMode = config.imageMode || runtimeConfig.imageMode;
+      runtimeConfig.imageStorageMode = config.imageStorageMode || runtimeConfig.imageStorageMode;
+    }
+  } catch (error) {
+    console.warn(error);
+  }
 }
 
 function showToast(message) {
@@ -487,7 +537,7 @@ function renderIllustration(scene) {
 
 async function requestSceneImage(index) {
   const scene = state.scenes[index];
-  if (!scene || scene.generatedImageUrl || scene.imageLoading || scene.imageJobId) {
+  if (!scene || scene.generatedImageUrl || scene.imageLoading || runtimeConfig.imageMode === "cover_only") {
     return;
   }
 
@@ -498,7 +548,7 @@ async function requestSceneImage(index) {
   }
 
   try {
-    const job = await createImageJob({
+    const result = await requestImageGeneration({
       genre: state.genre,
       actNumber: index + 1,
       title: scene.title,
@@ -507,10 +557,12 @@ async function requestSceneImage(index) {
       includeGuides: false,
     });
 
-    scene.imageJobId = job.id;
-    state.imageJobs[job.id] = { type: "scene", index };
+    scene.generatedImageUrl = result.imageUrl;
+    scene.imageUrl = result.imageUrl;
+    scene.imageLoading = false;
+    scene.imageStatus = "";
     saveStoryState();
-    pollImageJob(job.id);
+    refreshIllustration("scene", index);
   } catch (error) {
     console.warn(error);
     scene.imageLoading = false;
@@ -522,7 +574,7 @@ async function requestSceneImage(index) {
 
 async function requestEndingImage() {
   const ending = state.ending;
-  if (!ending || ending.generatedImageUrl || ending.imageLoading || ending.imageJobId) {
+  if (!ending || ending.generatedImageUrl || ending.imageLoading) {
     return;
   }
 
@@ -531,7 +583,7 @@ async function requestEndingImage() {
   document.querySelector("#ending-image").innerHTML = renderIllustration(ending);
 
   try {
-    const job = await createImageJob({
+    const result = await requestImageGeneration({
       genre: state.genre,
       actNumber: TOTAL_ACTS,
       title: ending.title,
@@ -540,10 +592,12 @@ async function requestEndingImage() {
       includeGuides: false,
     });
 
-    ending.imageJobId = job.id;
-    state.imageJobs[job.id] = { type: "ending" };
+    ending.generatedImageUrl = result.imageUrl;
+    ending.imageUrl = result.imageUrl;
+    ending.imageLoading = false;
+    ending.imageStatus = "";
     saveStoryState();
-    pollImageJob(job.id);
+    refreshIllustration("ending");
   } catch (error) {
     console.warn(error);
     ending.imageLoading = false;
@@ -553,8 +607,8 @@ async function requestEndingImage() {
   }
 }
 
-async function createImageJob(payload) {
-  const response = await fetch("/api/story-adventure/image-jobs", {
+async function requestImageGeneration(payload) {
+  const response = await fetch("/api/story-adventure/image", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(payload),
@@ -562,79 +616,10 @@ async function createImageJob(payload) {
 
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || "插图任务创建失败");
+    throw new Error(data.error || "插图生成失败");
   }
 
   return data;
-}
-
-async function pollImageJob(jobId, attempt = 0) {
-  const target = state.imageJobs[jobId];
-  if (!target) {
-    return;
-  }
-
-  try {
-    const response = await fetch(`/api/story-adventure/image-jobs/${encodeURIComponent(jobId)}`);
-    const job = await response.json().catch(() => ({}));
-    if (response.status === 404) {
-      markImageJobFailed(target);
-      delete state.imageJobs[jobId];
-      saveStoryState();
-      return;
-    }
-
-    if (!response.ok) {
-      throw new Error(job.error || "插图任务查询失败");
-    }
-
-    if (job.status === "succeeded" && job.result?.imageUrl) {
-      applyImageJobResult(target, job.result.imageUrl);
-      delete state.imageJobs[jobId];
-      saveStoryState();
-      return;
-    }
-
-    if (job.status === "failed") {
-      markImageJobFailed(target);
-      delete state.imageJobs[jobId];
-      saveStoryState();
-      return;
-    }
-
-    const delay = Math.min(2500 + attempt * 500, 7000);
-    window.setTimeout(() => pollImageJob(jobId, attempt + 1), delay);
-  } catch (error) {
-    console.warn(error);
-    const delay = Math.min(3500 + attempt * 700, 9000);
-    window.setTimeout(() => pollImageJob(jobId, attempt + 1), delay);
-  }
-}
-
-function applyImageJobResult(target, imageUrl) {
-  const item = target.type === "ending" ? state.ending : state.scenes[target.index];
-  if (!item) {
-    return;
-  }
-
-  item.generatedImageUrl = imageUrl;
-  item.imageUrl = imageUrl;
-  item.imageLoading = false;
-  item.imageStatus = "";
-  item.imageJobId = "";
-  refreshIllustration(target.type, target.index);
-}
-
-function markImageJobFailed(target) {
-  const item = target.type === "ending" ? state.ending : state.scenes[target.index];
-  if (!item) {
-    return;
-  }
-
-  item.imageLoading = false;
-  item.imageStatus = "";
-  item.imageJobId = "";
-  refreshIllustration(target.type, target.index);
 }
 
 function refreshIllustration(type, index) {
@@ -1046,4 +1031,5 @@ document.querySelector("#error-edit").addEventListener("click", () => showView("
 document.querySelector("#error-retry").addEventListener("click", startAdventure);
 
 setupDemoToolbar();
+loadRuntimeConfig();
 updateResumeButton();
