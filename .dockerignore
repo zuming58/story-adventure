@@ -1,0 +1,16 @@
+.git
+.agents
+.codex
+node_modules
+.env
+.env.local
+.vercel
+dist
+coverage
+backups
+presentation-draft
+presentation-handoff
+presentation-handoff-check
+presentation-handoff.zip
+story-adventure-deploy-vercel.zip
+story-adventure/generated
