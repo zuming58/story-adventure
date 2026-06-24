@@ -49,11 +49,21 @@ IMAGE_BASE_URL=https://uuapi.net/v1
 IMAGE_MODEL=gpt-image-2
 IMAGE_SIZE=1024x1024
 IMAGE_TIMEOUT_MS=120000
+IMAGE_JOB_TIMEOUT_MS=300000
+IMAGE_PROVIDER=uu,volcengine
+
+VOLCENGINE_IMAGE_API_KEY=你的火山 Ark Key
+VOLCENGINE_IMAGE_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
+VOLCENGINE_IMAGE_MODEL=doubao-seedream-5-0-260128
+VOLCENGINE_IMAGE_SIZE=1920x1920
+VOLCENGINE_IMAGE_TIMEOUT_MS=120000
 
 IMAGE_MODE=each_scene
 IMAGE_STORAGE_MODE=browser
 PORT=3100
 ```
+
+`IMAGE_PROVIDER=uu,volcengine` 表示优先调用 UU 生图；UU 失败、超时或返回错误时，服务端会自动调用火山 Ark 兜底。Key 只放服务端环境变量，不会暴露给扫码用户。
 
 4. 启动服务：
 
