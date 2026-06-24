@@ -140,7 +140,10 @@ async function serveStatic(pathname, response) {
     return;
   }
 
-  response.writeHead(200, { "Content-Type": getContentType(resolvedPath) });
+  response.writeHead(200, {
+    "Content-Type": getContentType(resolvedPath),
+    "Cache-Control": shouldDisableCache(resolvedPath) ? "no-store" : "public, max-age=3600",
+  });
   createReadStream(resolvedPath).pipe(response);
 }
 
@@ -183,6 +186,10 @@ function getContentType(filePath) {
   };
 
   return types[extname(filePath).toLowerCase()] || "application/octet-stream";
+}
+
+function shouldDisableCache(filePath) {
+  return [".html", ".css", ".js", ".json"].includes(extname(filePath).toLowerCase());
 }
 
 async function loadLocalEnv() {
