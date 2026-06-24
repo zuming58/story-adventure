@@ -35,7 +35,24 @@ IMAGE_BASE_URL=https://uuapi.net/v1
 IMAGE_MODEL=gpt-image-2
 IMAGE_SIZE=1536x1024
 IMAGE_TIMEOUT_MS=120000
-IMAGE_PROVIDER=uu,volcengine
+IMAGE_PROVIDER=uu,uu-fast,uu-banana,volcengine
+
+UU_FAST_IMAGE_API_KEY=你的 UU gpt快速生图 Key
+UU_FAST_IMAGE_BASE_URL=https://uuapi.net/v1
+UU_FAST_IMAGE_MODEL=gpt-image-2
+UU_FAST_IMAGE_SIZE=1536x1024
+UU_FAST_IMAGE_TIMEOUT_MS=120000
+
+UU_BANANA_IMAGE_API_KEY=你的 UU Nano Banana / Gemini Key
+UU_BANANA_IMAGE_BASE_URL=https://uuapi.net
+UU_BANANA_IMAGE_MODEL=gemini-2.0-flash
+UU_BANANA_IMAGE_SIZE=1536x1024
+UU_BANANA_IMAGE_TIMEOUT_MS=120000
+
+# 也兼容这组变量名
+GOOGLE_GEMINI_BASE_URL=https://uuapi.net
+GEMINI_API_KEY=你的 UU Nano Banana / Gemini Key
+GEMINI_MODEL=gemini-2.0-flash
 
 VOLCENGINE_IMAGE_API_KEY=你的火山 Ark Key
 VOLCENGINE_IMAGE_BASE_URL=https://ark.cn-beijing.volces.com/api/v3
@@ -47,7 +64,8 @@ IMAGE_MODE=each_scene
 IMAGE_STORAGE_MODE=browser
 ```
 
-`IMAGE_PROVIDER=uu,volcengine` 表示优先调用 UU；如果 UU 超时或报错，再自动调用火山 Ark 兜底。
+`IMAGE_PROVIDER=uu,uu-fast,uu-banana,volcengine` 表示优先调用原 UU；失败后尝试 UU gpt快速生图；再失败则走 UU Nano Banana 的 Gemini 兼容接口；最后再调用火山 Ark 兜底。
+`uu-banana` 不走 `/images/generations`，而是走 Gemini 兼容的 `generateContent`；如果 UU 返回 `No available Gemini accounts`，服务端会继续调用后面的火山 Ark 兜底。
 
 `IMAGE_MODE` 可选：
 
