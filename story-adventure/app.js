@@ -6,7 +6,7 @@ const runtimeConfig = {
 };
 const IMAGE_POLL_INTERVAL_MS = 3000;
 const IMAGE_SLOW_NOTICE_MS = 90000;
-const IMAGE_POLL_TIMEOUT_MS = 900000;
+const IMAGE_POLL_TIMEOUT_MS = 300000;
 
 const views = {
   cover: document.querySelector("#cover-view"),
