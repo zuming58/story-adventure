@@ -939,6 +939,28 @@ textarea {
   gap: 14px;
 }
 
+.book-image-status {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  margin: 0 0 14px;
+  border: 1px solid rgba(201, 132, 45, 0.28);
+  border-radius: 14px;
+  background: rgba(255, 249, 236, 0.92);
+  color: var(--primary-dark);
+  font-weight: 800;
+}
+
+.book-image-status button {
+  width: 100%;
+  border: 0;
+  border-radius: 999px;
+  padding: 12px 14px;
+  background: var(--gold);
+  color: #fff9ec;
+  font-weight: 900;
+}
+
 .book-page {
   padding: 16px;
 }

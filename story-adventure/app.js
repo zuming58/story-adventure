@@ -490,12 +490,18 @@ function confirmPlayerName() {
   showBook();
 }
 
-function showBook() {
+function showBook(options = {}) {
+  renderBookContent();
+  showView("book");
+}
+
+function renderBookContent() {
   const ending = state.ending || normalizeEndingForUi(demoEnding);
   const owner = getStoryOwner();
   document.querySelector("#book-title").textContent = owner ? `${owner}的《${ending.title}》` : ending.title;
   document.querySelector("#book-meta").textContent = `类型：${state.genre} | 主角：${owner || ending.protagonist} | 结局：${ending.type}`;
   document.querySelector("#book-ending").textContent = ending.text;
+  renderBookImageStatus();
 
   const pages = document.querySelector("#book-pages");
   pages.innerHTML = "";
@@ -511,7 +517,39 @@ function showBook() {
     pages.append(article);
   });
 
-  showView("book");
+}
+
+function renderBookImageStatus() {
+  const status = document.querySelector("#book-image-status");
+  const missing = getMissingStoryImages();
+  if (!status) {
+    return;
+  }
+
+  if (!missing.length) {
+    status.hidden = true;
+    status.innerHTML = "";
+    return;
+  }
+
+  const running = missing.filter((item) => item.imageLoading || item.imageJobId).length;
+  status.hidden = false;
+  status.innerHTML = `
+    <span>${running ? "插图还在补齐中" : "还有插图没有生成成功"}：${missing.map((item) => `第 ${item.index + 1} 幕`).join("、")}</span>
+    <button id="complete-book-images" type="button">${running ? "继续查询缺失插图" : "补齐缺失插图"}</button>
+  `;
+}
+
+function getMissingStoryImages() {
+  return state.scenes
+    .map((scene, index) => ({ ...scene, index }))
+    .filter((scene) => !scene.generatedImageUrl);
+}
+
+function refreshBookContentPreservingScroll() {
+  const scrollY = window.scrollY;
+  renderBookContent();
+  window.scrollTo({ top: scrollY, behavior: "auto" });
 }
 
 function getStoryOwner() {
@@ -791,6 +829,7 @@ function pollImageJob(jobId, target, startedAt = Date.now()) {
         item.imageLoading = false;
         item.imageStatus = "";
         item.imageError = "";
+        state.allowExportWithMissingImages = false;
         saveStoryState();
         refreshIllustration(target.type, target.index);
         showToast("插图生成完成，已自动更新。");
@@ -824,7 +863,7 @@ function pollImageJob(jobId, target, startedAt = Date.now()) {
       pollImageJob(jobId, target, startedAt);
     } catch (error) {
       console.warn(error);
-      markImageFailed(item, "插图查询失败，可点重新生成");
+      markImageDelayed(item, "网络查询不稳定，可继续查询插图");
       refreshIllustration(target.type, target.index);
     }
   }, IMAGE_POLL_INTERVAL_MS);
@@ -845,6 +884,7 @@ function markImageFailed(item, message) {
   item.imageStatus = "";
   item.imageError = message;
   item.imageCanRetry = true;
+  state.allowExportWithMissingImages = false;
   showToast("插图暂时没有生成成功，已保留默认图。");
   saveStoryState();
 }
@@ -854,8 +894,28 @@ function markImageDelayed(item, message) {
   item.imageStatus = "";
   item.imageError = message;
   item.imageCanRetry = false;
+  state.allowExportWithMissingImages = false;
   showToast("插图还在后台生成，可以稍后继续查询。");
   saveStoryState();
+}
+
+function completeMissingStoryImages() {
+  const missing = getMissingStoryImages();
+  if (!missing.length) {
+    showToast("五幕插图已经齐了，可以导出长图。");
+    return;
+  }
+
+  state.allowExportWithMissingImages = false;
+  missing.forEach((scene) => {
+    if (scene.imageLoading) {
+      return;
+    }
+
+    requestSceneImageV2(scene.index, { force: scene.imageCanRetry !== false });
+  });
+  renderBookImageStatus();
+  showToast("正在补齐缺失插图，可以稍后再导出。");
 }
 
 function resumePendingImageJobs() {
@@ -886,7 +946,7 @@ function refreshIllustration(type, index) {
   }
 
   if (views.book.classList.contains("active")) {
-    showBook();
+    refreshBookContentPreservingScroll();
   }
 }
 
@@ -896,26 +956,47 @@ async function exportStoryLongImage() {
     return;
   }
 
+  const missing = getMissingStoryImages();
+  if (missing.length && !state.allowExportWithMissingImages) {
+    state.allowExportWithMissingImages = true;
+    renderBookImageStatus();
+    showToast(`还有 ${missing.length} 幕插图未补齐，先点“补齐缺失插图”。再次点击可导出当前版本。`);
+    return;
+  }
+
   const button = document.querySelector("#save-story");
   button.disabled = true;
   button.textContent = "正在生成长图...";
 
   try {
     const blob = await renderStorybookPng();
-    const url = URL.createObjectURL(blob);
     const owner = getStoryOwner();
     const filename = `${sanitizeFilename(owner ? `${owner}的故事书` : state.ending?.title || "我的故事书")}.png`;
+    const file = new File([blob], filename, { type: "image/png" });
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
 
-    if (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) {
+    if (isMobile && navigator.canShare?.({ files: [file] })) {
+      await navigator.share({
+        title: filename.replace(/\.png$/i, ""),
+        files: [file],
+      });
+      showToast("已打开系统保存/分享面板。");
+      return;
+    }
+
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    link.target = "_blank";
+    document.body.append(link);
+    link.click();
+    link.remove();
+
+    if (isMobile) {
       window.open(url, "_blank");
-      showToast("长图已打开，可以长按保存。");
+      showToast("如果没有自动保存，请在打开的长图中长按保存。");
     } else {
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = filename;
-      document.body.append(link);
-      link.click();
-      link.remove();
       showToast("长图已导出。");
     }
 
@@ -1283,6 +1364,12 @@ document.querySelector("#save-story").addEventListener("click", exportStoryLongI
 document.querySelector("#error-edit").addEventListener("click", () => showView("home"));
 document.querySelector("#error-retry").addEventListener("click", startAdventure);
 document.addEventListener("click", (event) => {
+  const completeButton = event.target.closest("#complete-book-images");
+  if (completeButton) {
+    completeMissingStoryImages();
+    return;
+  }
+
   const button = event.target.closest("[data-image-retry]");
   if (!button) return;
 
