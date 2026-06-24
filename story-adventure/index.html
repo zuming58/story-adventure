@@ -24,22 +24,20 @@
       <section id="cover-view" class="view active" aria-labelledby="cover-title">
         <div class="cover-content">
           <div class="cover-title-group">
-            <p class="eyebrow">扫码开启冒险</p>
+            <div class="cover-brand">
+              <span>WaytoAGI</span>
+              <span>AI 切磋小会</span>
+            </div>
             <h1 id="cover-title">AI 互动故事冒险机</h1>
             <p>和小鹿、小兔子一起走进会发光的故事书</p>
+            <div class="cover-badges" aria-label="玩法亮点">
+              <span>一句开头</span>
+              <span>三次选择</span>
+              <span>一本故事书</span>
+            </div>
           </div>
           <div class="cover-start-group">
-            <div class="fake-qr" aria-label="演示二维码">
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
-              <span></span>
-            </div>
+            <p class="cover-tip">写下开头，让 AI 陪你把故事玩下去</p>
             <button id="enter-story" class="primary-action cover-action" type="button">开始冒险</button>
             <button id="resume-story" class="secondary-action cover-resume hidden" type="button">继续上次故事</button>
           </div>
@@ -82,14 +80,6 @@
           <p id="home-message" class="message" role="status"></p>
 
           <div class="bottom-actions">
-            <button id="voice-input" class="round-action" type="button" aria-label="语音输入">
-              <svg aria-hidden="true" viewBox="0 0 24 24">
-                <path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Z"></path>
-                <path d="M19 11a7 7 0 0 1-14 0"></path>
-                <path d="M12 18v3"></path>
-                <path d="M8 21h8"></path>
-              </svg>
-            </button>
             <button id="start-adventure" class="primary-action" type="button">开始冒险</button>
           </div>
         </section>

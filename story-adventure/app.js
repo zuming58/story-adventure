@@ -4,6 +4,8 @@ const runtimeConfig = {
   imageMode: "each_scene",
   imageStorageMode: "browser",
 };
+const IMAGE_POLL_INTERVAL_MS = 3000;
+const IMAGE_POLL_TIMEOUT_MS = 360000;
 
 const views = {
   cover: document.querySelector("#cover-view"),
@@ -219,6 +221,7 @@ function restoreSavedStory() {
   const index = Math.min(state.currentSceneIndex || 0, Math.max(state.scenes.length - 1, 0));
   renderScene(index);
   showView("scene");
+  resumePendingImageJobs();
 }
 
 function setActiveGenre(genre) {
@@ -289,7 +292,7 @@ async function startAdventure() {
     saveStoryState();
     renderScene(0);
     showView("scene");
-    requestSceneImage(0);
+    requestSceneImageV2(0);
   } catch (error) {
     console.warn(error);
     homeMessage.textContent = error.message || "这个开头暂时不适合儿童绘本，请换一个更安全、积极的开头。";
@@ -387,7 +390,7 @@ function renderScene(index) {
   document.querySelector("#scene-title").textContent = scene.title;
   document.querySelector("#scene-genre").textContent = state.genre;
   document.querySelector("#scene-text").textContent = scene.text;
-  document.querySelector("#scene-image").innerHTML = renderIllustration(scene);
+  document.querySelector("#scene-image").innerHTML = renderIllustration(scene, { type: "scene", index });
 
   const previousChoice = document.querySelector("#previous-choice");
   if (index > 0) {
@@ -436,7 +439,7 @@ async function choosePath(choice) {
     saveStoryState();
     renderScene(nextIndex);
     showView("scene");
-    requestSceneImage(nextIndex);
+    requestSceneImageV2(nextIndex);
   } catch (error) {
     showError("故事需要换一种方向", error.message || "这条路线暂时不适合儿童绘本，请返回重新选择。");
   }
@@ -454,9 +457,9 @@ function showEnding() {
   document.querySelector("#ending-title").textContent = ending.title;
   document.querySelector("#ending-type").textContent = ending.type;
   document.querySelector("#ending-text").textContent = ending.text;
-  document.querySelector("#ending-image").innerHTML = renderIllustration(ending);
+  document.querySelector("#ending-image").innerHTML = renderIllustration(ending, { type: "ending" });
   showView("ending");
-  requestEndingImage();
+  requestEndingImageV2();
 }
 
 function showNameEntry() {
@@ -506,11 +509,13 @@ function getStoryOwner() {
   return String(state.playerName || "").trim();
 }
 
-function renderIllustration(scene) {
+function renderIllustration(scene, options = {}) {
+  const imageControls = renderImageControls(scene, options);
   if (scene.imageUrl) {
     return `
-      <img class="illustration-img" src="${escapeHtml(scene.imageUrl)}" alt="${escapeHtml(scene.imageTitle || scene.title || "故事插图")}">
-      ${scene.imageLoading ? `<span class="image-status">${escapeHtml(scene.imageStatus || "正在生成插图...")}</span>` : ""}
+      <img class="illustration-img" src="${escapeHtml(scene.imageUrl)}" alt="${escapeHtml(scene.imageTitle || scene.title || "\u6545\u4e8b\u63d2\u56fe")}">
+      ${scene.imageLoading ? `<span class="image-status">${escapeHtml(scene.imageStatus || "\u6b63\u5728\u751f\u6210\u63d2\u56fe...")}</span>` : ""}
+      ${imageControls}
     `;
   }
 
@@ -527,14 +532,28 @@ function renderIllustration(scene) {
         <span class="art-spark art-spark-three"></span>
       </div>
       <div class="illustration-caption">
-        <span class="illustration-symbol">${escapeHtml(scene.symbol || "✦")}</span>
+        <span class="illustration-symbol">${escapeHtml(scene.symbol || "\u2726")}</span>
         <div class="illustration-title">${escapeHtml(scene.imageTitle || scene.title)}</div>
       </div>
-      ${scene.imageLoading ? `<span class="image-status">${escapeHtml(scene.imageStatus || "正在生成插图...")}</span>` : ""}
+      ${scene.imageLoading ? `<span class="image-status">${escapeHtml(scene.imageStatus || "\u6b63\u5728\u751f\u6210\u63d2\u56fe...")}</span>` : ""}
+      ${imageControls}
     </div>
   `;
 }
 
+function renderImageControls(scene, options = {}) {
+  if (!scene?.imageError || !options.type) {
+    return "";
+  }
+
+  const indexAttr = Number.isInteger(options.index) ? ` data-image-index="${options.index}"` : "";
+  return `
+    <div class="image-actions">
+      <span>${escapeHtml(scene.imageError)}</span>
+      <button class="image-retry" type="button" data-image-retry="${escapeHtml(options.type)}"${indexAttr}>&#37325;&#26032;&#29983;&#25104;&#25554;&#22270;</button>
+    </div>
+  `;
+}
 async function requestSceneImage(index) {
   const scene = state.scenes[index];
   if (!scene || scene.generatedImageUrl || scene.imageLoading || runtimeConfig.imageMode === "cover_only") {
@@ -622,13 +641,216 @@ async function requestImageGeneration(payload) {
   return data;
 }
 
+async function requestSceneImageV2(index, options = {}) {
+  const scene = state.scenes[index];
+  if (!scene || scene.generatedImageUrl || runtimeConfig.imageMode === "cover_only") {
+    return;
+  }
+
+  if (scene.imageJobId && !options.force) {
+    scene.imageLoading = true;
+    scene.imageError = "";
+    scene.imageStatus = "正在继续查询插图...";
+    saveStoryState();
+    refreshIllustration("scene", index);
+    pollImageJob(scene.imageJobId, { type: "scene", index });
+    return;
+  }
+
+  if (scene.imageLoading) {
+    return;
+  }
+
+  scene.imageLoading = true;
+  scene.imageError = "";
+  scene.imageJobId = "";
+  scene.imageStatus = "插图任务创建中...";
+  refreshIllustration("scene", index);
+
+  try {
+    const job = await createImageJob({
+      genre: state.genre,
+      actNumber: index + 1,
+      title: scene.title,
+      text: scene.text,
+      imagePrompt: scene.imagePrompt,
+      includeGuides: false,
+    });
+
+    scene.imageJobId = job.id;
+    scene.imageStatus = "插图正在生成，可以先继续故事...";
+    saveStoryState();
+    refreshIllustration("scene", index);
+    pollImageJob(job.id, { type: "scene", index });
+  } catch (error) {
+    console.warn(error);
+    markImageFailed(scene, "插图任务创建失败，可点重新生成");
+    refreshIllustration("scene", index);
+  }
+}
+
+async function requestEndingImageV2(options = {}) {
+  const ending = state.ending;
+  if (!ending || ending.generatedImageUrl) {
+    return;
+  }
+
+  if (ending.imageJobId && !options.force) {
+    ending.imageLoading = true;
+    ending.imageError = "";
+    ending.imageStatus = "正在继续查询结局插图...";
+    saveStoryState();
+    refreshIllustration("ending");
+    pollImageJob(ending.imageJobId, { type: "ending" });
+    return;
+  }
+
+  if (ending.imageLoading) {
+    return;
+  }
+
+  ending.imageLoading = true;
+  ending.imageError = "";
+  ending.imageJobId = "";
+  ending.imageStatus = "结局插图任务创建中...";
+  refreshIllustration("ending");
+
+  try {
+    const job = await createImageJob({
+      genre: state.genre,
+      actNumber: TOTAL_ACTS,
+      title: ending.title,
+      text: ending.text,
+      imagePrompt: ending.imagePrompt,
+      includeGuides: false,
+    });
+
+    ending.imageJobId = job.id;
+    ending.imageStatus = "结局插图正在生成...";
+    saveStoryState();
+    refreshIllustration("ending");
+    pollImageJob(job.id, { type: "ending" });
+  } catch (error) {
+    console.warn(error);
+    markImageFailed(ending, "结局插图任务创建失败，可点重新生成");
+    refreshIllustration("ending");
+  }
+}
+
+async function createImageJob(payload) {
+  const response = await fetch("/api/story-adventure/image-jobs", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "插图任务创建失败");
+  }
+
+  return data;
+}
+
+async function getImageJob(jobId) {
+  const response = await fetch(`/api/story-adventure/image-jobs/${encodeURIComponent(jobId)}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "插图任务查询失败");
+  }
+
+  return data;
+}
+
+function pollImageJob(jobId, target, startedAt = Date.now()) {
+  window.setTimeout(async () => {
+    const item = getImageTarget(target);
+    if (!item || item.generatedImageUrl || item.imageJobId !== jobId) {
+      return;
+    }
+
+    try {
+      const job = await getImageJob(jobId);
+      if (job.status === "succeeded" && job.result?.imageUrl) {
+        item.generatedImageUrl = job.result.imageUrl;
+        item.imageUrl = job.result.imageUrl;
+        item.imageLoading = false;
+        item.imageStatus = "";
+        item.imageError = "";
+        saveStoryState();
+        refreshIllustration(target.type, target.index);
+        showToast("插图生成完成，已自动更新。");
+        return;
+      }
+
+      if (job.status === "failed") {
+        markImageFailed(item, "插图生成失败，可点重新生成");
+        refreshIllustration(target.type, target.index);
+        return;
+      }
+
+      if (Date.now() - startedAt > IMAGE_POLL_TIMEOUT_MS) {
+        markImageFailed(item, "插图生成时间较长，可稍后重试");
+        refreshIllustration(target.type, target.index);
+        return;
+      }
+
+      item.imageLoading = true;
+      item.imageStatus = job.status === "running" ? "插图还在生成中..." : "插图正在排队...";
+      saveStoryState();
+      refreshIllustration(target.type, target.index);
+      pollImageJob(jobId, target, startedAt);
+    } catch (error) {
+      console.warn(error);
+      markImageFailed(item, "插图查询失败，可点重新生成");
+      refreshIllustration(target.type, target.index);
+    }
+  }, IMAGE_POLL_INTERVAL_MS);
+}
+
+function getImageTarget(target) {
+  if (target.type === "scene") {
+    return state.scenes[target.index];
+  }
+  if (target.type === "ending") {
+    return state.ending;
+  }
+  return null;
+}
+
+function markImageFailed(item, message) {
+  item.imageLoading = false;
+  item.imageStatus = "";
+  item.imageError = message;
+  showToast("插图暂时没有生成成功，已保留默认图。");
+  saveStoryState();
+}
+
+function resumePendingImageJobs() {
+  state.scenes.forEach((scene, index) => {
+    if (scene?.imageJobId && !scene.generatedImageUrl) {
+      scene.imageLoading = true;
+      scene.imageError = "";
+      scene.imageStatus = "正在继续查询插图...";
+      pollImageJob(scene.imageJobId, { type: "scene", index });
+    }
+  });
+
+  if (state.ending?.imageJobId && !state.ending.generatedImageUrl) {
+    state.ending.imageLoading = true;
+    state.ending.imageError = "";
+    state.ending.imageStatus = "正在继续查询结局插图...";
+    pollImageJob(state.ending.imageJobId, { type: "ending" });
+  }
+}
+
 function refreshIllustration(type, index) {
   if (type === "scene" && state.currentSceneIndex === index && views.scene.classList.contains("active")) {
-    document.querySelector("#scene-image").innerHTML = renderIllustration(state.scenes[index]);
+    document.querySelector("#scene-image").innerHTML = renderIllustration(state.scenes[index], { type: "scene", index });
   }
 
   if (type === "ending" && views.ending.classList.contains("active")) {
-    document.querySelector("#ending-image").innerHTML = renderIllustration(state.ending);
+    document.querySelector("#ending-image").innerHTML = renderIllustration(state.ending, { type: "ending" });
   }
 
   if (views.book.classList.contains("active")) {
@@ -996,10 +1218,9 @@ document.querySelectorAll(".example").forEach((button) => {
   });
 });
 
-document.querySelector("#voice-input").addEventListener("click", () => {
-  showToast("语音输入将在下一版支持，请先使用文字输入。");
+document.querySelector("#voice-input")?.addEventListener("click", () => {
+  showToast("\u8bed\u97f3\u8f93\u5165\u6682\u4e0d\u5f00\u653e\uff0c\u8bf7\u5148\u4f7f\u7528\u6587\u5b57\u8f93\u5165\u3002");
 });
-
 document.querySelector("#enter-story").addEventListener("click", () => showView("home"));
 resumeStoryButton.addEventListener("click", restoreSavedStory);
 document.querySelector("#start-adventure").addEventListener("click", startAdventure);
@@ -1029,6 +1250,26 @@ document.querySelector("#restart-story").addEventListener("click", () => {
 document.querySelector("#save-story").addEventListener("click", exportStoryLongImage);
 document.querySelector("#error-edit").addEventListener("click", () => showView("home"));
 document.querySelector("#error-retry").addEventListener("click", startAdventure);
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-image-retry]");
+  if (!button) return;
+
+  const type = button.dataset.imageRetry;
+  if (type === "scene") {
+    const index = Number(button.dataset.imageIndex);
+    if (Number.isInteger(index) && state.scenes[index]) {
+      state.scenes[index].imageError = "";
+      state.scenes[index].imageJobId = "";
+      requestSceneImageV2(index, { force: true });
+    }
+  }
+
+  if (type === "ending" && state.ending) {
+    state.ending.imageError = "";
+    state.ending.imageJobId = "";
+    requestEndingImageV2({ force: true });
+  }
+});
 
 setupDemoToolbar();
 loadRuntimeConfig();
