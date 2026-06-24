@@ -324,9 +324,13 @@ async function generateScene(actNumber, selectedChoice = "") {
     }
 
     console.warn(error);
-    state.usingFallback = true;
-    showToast("当前使用演示故事，配置 AI 后可生成真实内容。");
-    return normalizeSceneForUi(demoScenes[actNumber - 1], actNumber);
+    if (error.statusCode === 503) {
+      state.usingFallback = true;
+      showToast("当前使用演示故事，配置 AI 后可生成真实内容。");
+      return normalizeSceneForUi(demoScenes[actNumber - 1], actNumber);
+    }
+
+    throw error;
   }
 }
 
@@ -354,9 +358,13 @@ async function generateEnding(selectedChoice = "") {
     }
 
     console.warn(error);
-    state.usingFallback = true;
-    showToast("结局暂时使用演示版本，故事流程不会中断。");
-    return buildFallbackEnding(selectedChoice);
+    if (error.statusCode === 503) {
+      state.usingFallback = true;
+      showToast("结局暂时使用演示版本，故事流程不会中断。");
+      return buildFallbackEnding(selectedChoice);
+    }
+
+    throw error;
   }
 }
 
