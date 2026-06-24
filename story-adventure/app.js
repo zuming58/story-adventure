@@ -5,7 +5,8 @@ const runtimeConfig = {
   imageStorageMode: "browser",
 };
 const IMAGE_POLL_INTERVAL_MS = 3000;
-const IMAGE_POLL_TIMEOUT_MS = 360000;
+const IMAGE_SLOW_NOTICE_MS = 90000;
+const IMAGE_POLL_TIMEOUT_MS = 900000;
 
 const views = {
   cover: document.querySelector("#cover-view"),
@@ -555,10 +556,11 @@ function renderImageControls(scene, options = {}) {
   }
 
   const indexAttr = Number.isInteger(options.index) ? ` data-image-index="${options.index}"` : "";
+  const label = scene.imageCanRetry === false ? "继续查询插图" : "重新生成插图";
   return `
     <div class="image-actions">
       <span>${escapeHtml(scene.imageError)}</span>
-      <button class="image-retry" type="button" data-image-retry="${escapeHtml(options.type)}"${indexAttr}>&#37325;&#26032;&#29983;&#25104;&#25554;&#22270;</button>
+      <button class="image-retry" type="button" data-image-retry="${escapeHtml(options.type)}"${indexAttr}>${escapeHtml(label)}</button>
     </div>
   `;
 }
@@ -658,6 +660,7 @@ async function requestSceneImageV2(index, options = {}) {
   if (scene.imageJobId && !options.force) {
     scene.imageLoading = true;
     scene.imageError = "";
+    scene.imageCanRetry = false;
     scene.imageStatus = "正在继续查询插图...";
     saveStoryState();
     refreshIllustration("scene", index);
@@ -671,6 +674,7 @@ async function requestSceneImageV2(index, options = {}) {
 
   scene.imageLoading = true;
   scene.imageError = "";
+  scene.imageCanRetry = false;
   scene.imageJobId = "";
   scene.imageStatus = "插图任务创建中...";
   refreshIllustration("scene", index);
@@ -706,6 +710,7 @@ async function requestEndingImageV2(options = {}) {
   if (ending.imageJobId && !options.force) {
     ending.imageLoading = true;
     ending.imageError = "";
+    ending.imageCanRetry = false;
     ending.imageStatus = "正在继续查询结局插图...";
     saveStoryState();
     refreshIllustration("ending");
@@ -719,6 +724,7 @@ async function requestEndingImageV2(options = {}) {
 
   ending.imageLoading = true;
   ending.imageError = "";
+  ending.imageCanRetry = false;
   ending.imageJobId = "";
   ending.imageStatus = "结局插图任务创建中...";
   refreshIllustration("ending");
@@ -798,13 +804,21 @@ function pollImageJob(jobId, target, startedAt = Date.now()) {
       }
 
       if (Date.now() - startedAt > IMAGE_POLL_TIMEOUT_MS) {
-        markImageFailed(item, "插图生成时间较长，可稍后重试");
+        markImageDelayed(item, "插图还没返回，可稍后继续查询");
         refreshIllustration(target.type, target.index);
         return;
       }
 
       item.imageLoading = true;
-      item.imageStatus = job.status === "running" ? "插图还在生成中..." : "插图正在排队...";
+      item.imageError = "";
+      item.imageCanRetry = false;
+      const elapsed = Date.now() - startedAt;
+      item.imageStatus =
+        elapsed > IMAGE_SLOW_NOTICE_MS
+          ? "插图比较慢，可以先继续故事；好了会自动更新。"
+          : job.status === "running"
+            ? "插图还在生成中..."
+            : "插图正在排队...";
       saveStoryState();
       refreshIllustration(target.type, target.index);
       pollImageJob(jobId, target, startedAt);
@@ -830,7 +844,17 @@ function markImageFailed(item, message) {
   item.imageLoading = false;
   item.imageStatus = "";
   item.imageError = message;
+  item.imageCanRetry = true;
   showToast("插图暂时没有生成成功，已保留默认图。");
+  saveStoryState();
+}
+
+function markImageDelayed(item, message) {
+  item.imageLoading = false;
+  item.imageStatus = "";
+  item.imageError = message;
+  item.imageCanRetry = false;
+  showToast("插图还在后台生成，可以稍后继续查询。");
   saveStoryState();
 }
 
@@ -1266,16 +1290,23 @@ document.addEventListener("click", (event) => {
   if (type === "scene") {
     const index = Number(button.dataset.imageIndex);
     if (Number.isInteger(index) && state.scenes[index]) {
-      state.scenes[index].imageError = "";
-      state.scenes[index].imageJobId = "";
-      requestSceneImageV2(index, { force: true });
+      const scene = state.scenes[index];
+      const shouldCreateNewJob = scene.imageCanRetry !== false;
+      scene.imageError = "";
+      if (shouldCreateNewJob) {
+        scene.imageJobId = "";
+      }
+      requestSceneImageV2(index, { force: shouldCreateNewJob });
     }
   }
 
   if (type === "ending" && state.ending) {
+    const shouldCreateNewJob = state.ending.imageCanRetry !== false;
     state.ending.imageError = "";
-    state.ending.imageJobId = "";
-    requestEndingImageV2({ force: true });
+    if (shouldCreateNewJob) {
+      state.ending.imageJobId = "";
+    }
+    requestEndingImageV2({ force: shouldCreateNewJob });
   }
 });
 
