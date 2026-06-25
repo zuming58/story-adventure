@@ -6,7 +6,7 @@ const runtimeConfig = {
 };
 const IMAGE_POLL_INTERVAL_MS = 3000;
 const IMAGE_SLOW_NOTICE_MS = 90000;
-const IMAGE_POLL_TIMEOUT_MS = 300000;
+const IMAGE_POLL_TIMEOUT_MS = 600000;
 
 const views = {
   cover: document.querySelector("#cover-view"),
@@ -883,9 +883,7 @@ function pollImageJob(jobId, target, startedAt = Date.now()) {
       item.imageStatus =
         elapsed > IMAGE_SLOW_NOTICE_MS
           ? "插图比较慢，可以先继续故事；好了会自动更新。"
-          : job.status === "running"
-            ? "插图还在生成中..."
-            : "插图正在排队...";
+          : getImageJobStatusText(job);
       saveStoryState();
       refreshIllustration(target.type, target.index);
       pollImageJob(jobId, target, startedAt);
@@ -905,6 +903,19 @@ function getImageTarget(target) {
     return state.ending;
   }
   return null;
+}
+
+function getImageJobStatusText(job) {
+  if (job.status === "running") {
+    return "插图还在生成中...";
+  }
+
+  if (job.status === "pending") {
+    const position = Number(job.queuePosition || 0);
+    return position > 1 ? `插图正在排队，前面还有 ${position - 1} 张...` : "插图即将开始生成...";
+  }
+
+  return "插图正在排队...";
 }
 
 function lockImageProvider(provider) {
