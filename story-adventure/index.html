@@ -12,6 +12,7 @@
         <span>UI 预览</span>
         <button type="button" data-demo="cover">封面</button>
         <button type="button" data-demo="home">输入页</button>
+        <button type="button" data-demo="waiting">排队中</button>
         <button type="button" data-demo="loading">生成中</button>
         <button type="button" data-demo="scene">故事幕</button>
         <button type="button" data-demo="writing">续写中</button>
@@ -83,6 +84,22 @@
             <button id="start-adventure" class="primary-action" type="button">开始冒险</button>
           </div>
         </section>
+      </section>
+
+      <section id="waiting-view" class="view" aria-labelledby="waiting-title">
+        <div class="panel centered">
+          <h2 id="waiting-title">故事传送门正在排队...</h2>
+          <div class="feature-illustration compact">
+            <img src="assets/loading-portal.png" alt="正在等待进入故事传送门">
+          </div>
+          <div class="book-loader" aria-hidden="true">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <p id="waiting-text">现场体验人数有点多，正在为你排队。</p>
+          <button id="cancel-waiting" class="secondary-action" type="button">返回修改</button>
+        </div>
       </section>
 
       <section id="loading-view" class="view" aria-labelledby="loading-title">

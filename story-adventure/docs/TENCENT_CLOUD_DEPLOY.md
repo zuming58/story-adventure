@@ -78,6 +78,7 @@ IMAGE_MODE=each_scene
 IMAGE_STORAGE_MODE=browser
 IMAGE_JOB_CONCURRENCY=2
 IMAGE_MAX_JOBS=300
+STORY_SESSION_CONCURRENCY=6
 PORT=3100
 ```
 
@@ -85,6 +86,7 @@ PORT=3100
 `uu-banana` 不走 `/images/generations`，而是走 Gemini 兼容的 `generateContent`；如果 UU 返回 `No available Gemini accounts`，服务端会继续调用后面的火山 Ark 兜底。
 当前 UU GPT 两个通道建议使用 `1024x1024`，本地测试比 `1536x1024` 更稳定；火山 Seedream 兜底仍可使用自己的高分辨率尺寸。
 `IMAGE_JOB_CONCURRENCY=2` 表示服务端最多同时跑 2 个生图任务，其余手机请求会排队，适合现场多人同时扫码，避免一次性打爆上游生图 API。现场如果仍然拥堵，可临时改成 `1`；如果通道很顺，可改成 `3`。
+`STORY_SESSION_CONCURRENCY=6` 表示现场最多同时放 6 组进入故事生成流程，后面的家庭会停在“排队中”页面。现场如果节奏太慢可改成 `8`，如果服务器压力大可改成 `4`。
 
 4. 启动服务：
 

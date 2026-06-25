@@ -61,7 +61,8 @@ button:disabled {
 }
 
 .view#cover-view.active,
-.view#home-view.active {
+.view#home-view.active,
+.view#waiting-view.active {
   display: flex;
 }
 

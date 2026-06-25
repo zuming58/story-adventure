@@ -3,14 +3,17 @@ const STORAGE_KEY = "storyAdventure.currentStory.v1";
 const runtimeConfig = {
   imageMode: "each_scene",
   imageStorageMode: "browser",
+  storySessionConcurrency: 6,
 };
 const IMAGE_POLL_INTERVAL_MS = 3000;
 const IMAGE_SLOW_NOTICE_MS = 90000;
 const IMAGE_POLL_TIMEOUT_MS = 600000;
+const SESSION_POLL_INTERVAL_MS = 2500;
 
 const views = {
   cover: document.querySelector("#cover-view"),
   home: document.querySelector("#home-view"),
+  waiting: document.querySelector("#waiting-view"),
   loading: document.querySelector("#loading-view"),
   scene: document.querySelector("#scene-view"),
   writing: document.querySelector("#writing-view"),
@@ -24,6 +27,7 @@ const storyStartInput = document.querySelector("#story-start");
 const playerNameInput = document.querySelector("#player-name");
 const homeMessage = document.querySelector("#home-message");
 const nameMessage = document.querySelector("#name-message");
+const waitingText = document.querySelector("#waiting-text");
 const toast = document.querySelector("#toast");
 const genreButtons = [...document.querySelectorAll("#genre-options .choice")];
 const resumeStoryButton = document.querySelector("#resume-story");
@@ -108,6 +112,7 @@ function getInitialState() {
     usingFallback: false,
     imageJobs: {},
     lockedImageProvider: "",
+    storySessionId: "",
   };
 }
 
@@ -246,6 +251,7 @@ async function loadRuntimeConfig() {
     if (response.ok) {
       runtimeConfig.imageMode = config.imageMode || runtimeConfig.imageMode;
       runtimeConfig.imageStorageMode = config.imageStorageMode || runtimeConfig.imageStorageMode;
+      runtimeConfig.storySessionConcurrency = config.storySessionConcurrency || runtimeConfig.storySessionConcurrency;
     }
   } catch (error) {
     console.warn(error);
@@ -284,6 +290,33 @@ async function startAdventure() {
   };
   clearSavedStory();
 
+  await beginQueuedAdventure();
+}
+
+async function beginQueuedAdventure() {
+  waitingText.textContent = "正在帮你进入故事传送门...";
+  showView("waiting");
+
+  try {
+    const session = await createStorySession();
+    state.storySessionId = session.id;
+    saveStoryState();
+
+    if (session.status === "active") {
+      await generateFirstSceneAfterAdmission();
+      return;
+    }
+
+    updateWaitingText(session);
+    pollStorySession(session.id);
+  } catch (error) {
+    console.warn(error);
+    homeMessage.textContent = "现场排队服务暂时不稳定，请稍后再试。";
+    showView("home");
+  }
+}
+
+async function generateFirstSceneAfterAdmission() {
   document.querySelector("#loading-text").textContent = "AI 正在根据你的开头编织第一幕。";
   showView("loading");
 
@@ -300,6 +333,77 @@ async function startAdventure() {
     homeMessage.textContent = error.message || "这个开头暂时不适合儿童绘本，请换一个更安全、积极的开头。";
     showView("home");
   }
+}
+
+async function createStorySession() {
+  const response = await fetch("/api/story-adventure/sessions", { method: "POST" });
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "进入排队失败");
+  }
+
+  return data;
+}
+
+async function getStorySession(sessionId) {
+  const response = await fetch(`/api/story-adventure/sessions/${encodeURIComponent(sessionId)}`);
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(data.error || "查询排队失败");
+  }
+
+  return data;
+}
+
+function finishCurrentStorySession() {
+  const sessionId = state.storySessionId;
+  if (!sessionId) {
+    return;
+  }
+
+  state.storySessionId = "";
+  fetch(`/api/story-adventure/sessions/${encodeURIComponent(sessionId)}/finish`, { method: "POST" }).catch((error) =>
+    console.warn(error),
+  );
+}
+
+function pollStorySession(sessionId) {
+  window.setTimeout(async () => {
+    if (state.storySessionId !== sessionId || !views.waiting.classList.contains("active")) {
+      return;
+    }
+
+    try {
+      const session = await getStorySession(sessionId);
+      state.storySessionId = session.id;
+
+      if (session.status === "active") {
+        await generateFirstSceneAfterAdmission();
+        return;
+      }
+
+      updateWaitingText(session);
+      pollStorySession(sessionId);
+    } catch (error) {
+      console.warn(error);
+      waitingText.textContent = "排队查询有点慢，请保持页面打开。";
+      pollStorySession(sessionId);
+    }
+  }, SESSION_POLL_INTERVAL_MS);
+}
+
+function updateWaitingText(session) {
+  const position = Number(session.queuePosition || 0);
+  const maxActive = Number(session.maxActive || runtimeConfig.storySessionConcurrency || 6);
+  waitingText.textContent =
+    position > 1
+      ? `现场正在分批进入，前面还有 ${position - 1} 组。每次大约开放 ${maxActive} 组。`
+      : "快轮到你了，请保持页面打开。";
+}
+
+function cancelWaiting() {
+  finishCurrentStorySession();
+  showView("home");
 }
 
 async function generateScene(actNumber, selectedChoice = "") {
@@ -473,6 +577,7 @@ function showEnding() {
 }
 
 function showNameEntry() {
+  finishCurrentStorySession();
   playerNameInput.value = state.playerName || "";
   nameMessage.textContent = "";
   showView("name");
@@ -1355,6 +1460,7 @@ function setupDemoToolbar() {
     const target = button.dataset.demo;
     if (target === "cover") showView("cover");
     if (target === "home") showView("home");
+    if (target === "waiting") showView("waiting");
     if (target === "loading") showView("loading");
     if (target === "scene") {
       renderScene(2);
@@ -1407,6 +1513,7 @@ document.querySelector("#voice-input")?.addEventListener("click", () => {
 document.querySelector("#enter-story").addEventListener("click", () => showView("home"));
 resumeStoryButton.addEventListener("click", restoreSavedStory);
 document.querySelector("#start-adventure").addEventListener("click", startAdventure);
+document.querySelector("#cancel-waiting").addEventListener("click", cancelWaiting);
 document.querySelector("#cancel-loading").addEventListener("click", () => showView("home"));
 document.querySelector("#make-book").addEventListener("click", showNameEntry);
 document.querySelector("#confirm-book").addEventListener("click", confirmPlayerName);
@@ -1425,6 +1532,7 @@ document.querySelector("#review-story").addEventListener("click", () => {
   showView("scene");
 });
 document.querySelector("#restart-story").addEventListener("click", () => {
+  finishCurrentStorySession();
   state = getInitialState();
   clearSavedStory();
   storyStartInput.value = "";

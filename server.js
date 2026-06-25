@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { generateStoryAdventure } from "./lib/story-adventure.js";
 import { generateStoryImage } from "./lib/story-images.js";
 import { createImageJob, getImageJob } from "./lib/image-jobs.js";
+import { createStorySession, finishStorySession, getStorySession } from "./lib/story-sessions.js";
 
 const rootDir = fileURLToPath(new URL(".", import.meta.url));
 const port = Number(process.env.PORT || 3100);
@@ -35,6 +36,16 @@ const server = createServer(async (request, response) => {
 
     if (url.pathname === "/api/story-adventure/config") {
       await handleStoryConfig(request, response);
+      return;
+    }
+
+    if (url.pathname === "/api/story-adventure/sessions") {
+      await handleCreateStorySession(request, response);
+      return;
+    }
+
+    if (url.pathname.startsWith("/api/story-adventure/sessions/")) {
+      await handleStorySession(url.pathname, request, response);
       return;
     }
 
@@ -96,10 +107,57 @@ async function handleStoryConfig(request, response) {
   sendJson(response, 200, getPublicStoryConfig());
 }
 
+async function handleCreateStorySession(request, response) {
+  if (request.method !== "POST") {
+    sendJson(response, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  const session = createStorySession();
+  sendJson(response, session.status === "active" ? 200 : 202, session);
+}
+
+async function handleStorySession(pathname, request, response) {
+  const parts = pathname.split("/");
+  const sessionId = decodeURIComponent(parts[parts.length - 1] || "");
+  const isFinish = pathname.endsWith("/finish");
+  const id = isFinish ? decodeURIComponent(parts[parts.length - 2] || "") : sessionId;
+
+  if (isFinish) {
+    if (request.method !== "POST") {
+      sendJson(response, 405, { error: "Method not allowed" });
+      return;
+    }
+
+    const session = finishStorySession(id);
+    if (!session) {
+      sendJson(response, 404, { error: "Story session not found" });
+      return;
+    }
+
+    sendJson(response, 200, session);
+    return;
+  }
+
+  if (request.method !== "GET") {
+    sendJson(response, 405, { error: "Method not allowed" });
+    return;
+  }
+
+  const session = getStorySession(id);
+  if (!session) {
+    sendJson(response, 404, { error: "Story session not found" });
+    return;
+  }
+
+  sendJson(response, 200, session);
+}
+
 function getPublicStoryConfig() {
   return {
     imageMode: process.env.IMAGE_MODE || "each_scene",
     imageStorageMode: process.env.IMAGE_STORAGE_MODE || "browser",
+    storySessionConcurrency: Number(process.env.STORY_SESSION_CONCURRENCY || 6),
   };
 }
 
