@@ -962,6 +962,40 @@ textarea {
   font-weight: 900;
 }
 
+.browser-hint {
+  margin: 6px 0 0;
+  color: var(--gold);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.export-preview {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(201, 132, 45, 0.28);
+  border-radius: 14px;
+  background: rgba(255, 249, 236, 0.92);
+}
+
+.export-preview p {
+  margin: 0;
+  color: var(--primary-dark);
+  font-weight: 800;
+}
+
+.export-preview-link {
+  display: block;
+}
+
+.export-preview-image {
+  display: block;
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+
 .book-page {
   padding: 16px;
 }

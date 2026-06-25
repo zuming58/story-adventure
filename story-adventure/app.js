@@ -26,9 +26,11 @@ const views = {
 const storyStartInput = document.querySelector("#story-start");
 const playerNameInput = document.querySelector("#player-name");
 const homeMessage = document.querySelector("#home-message");
+const browserHint = document.querySelector("#browser-hint");
 const nameMessage = document.querySelector("#name-message");
 const waitingText = document.querySelector("#waiting-text");
 const toast = document.querySelector("#toast");
+const exportPreview = document.querySelector("#export-preview");
 const genreButtons = [...document.querySelectorAll("#genre-options .choice")];
 const resumeStoryButton = document.querySelector("#resume-story");
 
@@ -241,6 +243,9 @@ function setActiveGenre(genre) {
 function showView(name) {
   Object.values(views).forEach((view) => view.classList.remove("active"));
   views[name].classList.add("active");
+  if (name === "home" && browserHint) {
+    browserHint.classList.toggle("hidden", !isWeChatBrowser());
+  }
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -475,21 +480,37 @@ async function generateEnding(selectedChoice = "") {
 }
 
 async function requestStoryGeneration(payload) {
-  const response = await fetch("/api/story-adventure/scene", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
-  });
+  let lastError = null;
 
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const error = new Error(data.error || "故事生成失败");
-    error.statusCode = response.status;
-    error.code = data.code || "";
-    throw error;
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const response = await fetch("/api/story-adventure/scene", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        const error = new Error(data.error || "故事生成失败");
+        error.statusCode = response.status;
+        error.code = data.code || "";
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      lastError = error;
+      const retryable = !error.statusCode || error.statusCode >= 500;
+      if (!retryable || attempt === 1) {
+        throw error;
+      }
+
+      await wait(700);
+    }
   }
 
-  return data;
+  throw lastError || new Error("故事生成失败");
 }
 
 function isSafetyBlocked(error) {
@@ -975,27 +996,28 @@ function pollImageJob(jobId, target, startedAt = Date.now()) {
         return;
       }
 
-      if (Date.now() - startedAt > IMAGE_POLL_TIMEOUT_MS) {
-        markImageDelayed(item, "插图还没返回，可稍后继续查询");
-        refreshIllustration(target.type, target.index);
-        return;
-      }
-
       item.imageLoading = true;
       item.imageError = "";
       item.imageCanRetry = false;
       const elapsed = Date.now() - startedAt;
       item.imageStatus =
-        elapsed > IMAGE_SLOW_NOTICE_MS
-          ? "插图比较慢，可以先继续故事；好了会自动更新。"
+        elapsed > IMAGE_POLL_TIMEOUT_MS
+          ? "插图排队较久，系统仍在继续查询；好了会自动更新。"
+          : elapsed > IMAGE_SLOW_NOTICE_MS
+            ? "插图比较慢，可以先继续故事；好了会自动更新。"
           : getImageJobStatusText(job);
       saveStoryState();
       refreshIllustration(target.type, target.index);
       pollImageJob(jobId, target, startedAt);
     } catch (error) {
       console.warn(error);
-      markImageDelayed(item, "网络查询不稳定，可继续查询插图");
+      item.imageLoading = true;
+      item.imageError = "";
+      item.imageCanRetry = false;
+      item.imageStatus = "网络查询有点慢，仍在继续等插图...";
+      saveStoryState();
       refreshIllustration(target.type, target.index);
+      pollImageJob(jobId, target, startedAt);
     }
   }, IMAGE_POLL_INTERVAL_MS);
 }
@@ -1149,8 +1171,10 @@ async function exportStoryLongImage() {
     const filename = `${sanitizeFilename(owner ? `${owner}的故事书` : state.ending?.title || "我的故事书")}.png`;
     const file = new File([blob], filename, { type: "image/png" });
     const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+    const isWeChat = isWeChatBrowser();
+    const url = URL.createObjectURL(blob);
 
-    if (isMobile && navigator.canShare?.({ files: [file] })) {
+    if (isMobile && !isWeChat && navigator.canShare?.({ files: [file] })) {
       await navigator.share({
         title: filename.replace(/\.png$/i, ""),
         files: [file],
@@ -1159,7 +1183,6 @@ async function exportStoryLongImage() {
       return;
     }
 
-    const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
     link.download = filename;
@@ -1168,7 +1191,11 @@ async function exportStoryLongImage() {
     link.click();
     link.remove();
 
-    if (isMobile) {
+    renderExportPreview(url, filename, isWeChat);
+
+    if (isWeChat) {
+      showToast("微信内建议点右上角在浏览器打开；下方也可尝试长按预览图保存。");
+    } else if (isMobile) {
       window.open(url, "_blank");
       showToast("如果没有自动保存，请在打开的长图中长按保存。");
     } else {
@@ -1183,6 +1210,20 @@ async function exportStoryLongImage() {
     button.disabled = false;
     button.textContent = "导出长图";
   }
+}
+
+function renderExportPreview(url, filename, isWeChat) {
+  if (!exportPreview) {
+    return;
+  }
+
+  exportPreview.classList.remove("hidden");
+  exportPreview.innerHTML = `
+    <p>${escapeHtml(isWeChat ? "如果微信不允许直接下载，可以长按下面这张长图尝试保存。" : "如果没有自动保存，也可以在下面重新打开长图。")}</p>
+    <a class="export-preview-link" href="${escapeHtml(url)}" target="_blank" download="${escapeHtml(filename)}">
+      <img class="export-preview-image" src="${escapeHtml(url)}" alt="导出的故事长图预览">
+    </a>
+  `;
 }
 
 async function renderStorybookPng() {
@@ -1383,6 +1424,14 @@ function loadCanvasImage(src) {
 
 function sanitizeFilename(name) {
   return String(name || "我的故事书").replace(/[\\/:*?"<>|]/g, "").slice(0, 40) || "我的故事书";
+}
+
+function isWeChatBrowser() {
+  return /MicroMessenger/i.test(navigator.userAgent);
+}
+
+function wait(ms) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
 function normalizeSceneForUi(scene, actNumber) {
