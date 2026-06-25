@@ -25,7 +25,8 @@ echo The browser will open automatically:
 echo http://localhost:3100
 echo.
 
+start "AI Story Adventure Server" cmd /k "cd /d ""%~dp0"" && npm.cmd run dev"
+timeout /t 2 /nobreak >nul
 start "" "http://localhost:3100"
-npm.cmd run dev
 
 pause

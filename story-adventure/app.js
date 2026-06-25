@@ -1219,7 +1219,7 @@ function renderExportPreview(url, filename, isWeChat) {
 
   exportPreview.classList.remove("hidden");
   exportPreview.innerHTML = `
-    <p>${escapeHtml(isWeChat ? "如果微信不允许直接下载，可以长按下面这张长图尝试保存。" : "如果没有自动保存，也可以在下面重新打开长图。")}</p>
+    <p>${escapeHtml(isWeChat ? "微信内长按保存可能失败。最稳的方法：点右上角“在浏览器打开”，再导出或长按保存。" : "如果没有自动保存，也可以在下面重新打开长图。")}</p>
     <a class="export-preview-link" href="${escapeHtml(url)}" target="_blank" download="${escapeHtml(filename)}">
       <img class="export-preview-image" src="${escapeHtml(url)}" alt="导出的故事长图预览">
     </a>
@@ -1238,7 +1238,7 @@ async function renderStorybookPng() {
   const padding = 62;
   const cardX = 46;
   const cardW = width - cardX * 2;
-  const imageH = 540;
+  const imageH = 500;
   let y = 0;
 
   ctx.fillStyle = "#f6edda";
@@ -1267,13 +1267,13 @@ async function renderStorybookPng() {
   const coverImage = await loadCanvasImage(ending.imageUrl || "assets/book-ending.png");
   y += 28;
   drawImageOrPlaceholder(ctx, coverImage, padding, y, width - padding * 2, imageH, "我的故事封面");
-  y += imageH + 46;
+  y += imageH + 58;
 
   for (let index = 0; index < state.scenes.length; index += 1) {
     const scene = state.scenes[index];
     const img = await loadCanvasImage(scene.imageUrl || "assets/story-choice.png");
     const cardStart = y;
-    const estimatedHeight = 980;
+    const estimatedHeight = 1160;
 
     drawCardBackground(ctx, cardX, cardStart, cardW, estimatedHeight);
     y += 42;
@@ -1283,16 +1283,16 @@ async function renderStorybookPng() {
     ctx.fillStyle = "#30243f";
     ctx.font = "900 46px Microsoft YaHei, Arial";
     y = drawWrappedText(ctx, scene.title, padding, y + 8, width - padding * 2, 58);
-    y += 20;
+    y += 26;
     drawImageOrPlaceholder(ctx, img, padding, y, width - padding * 2, imageH, scene.title);
-    y += imageH + 26;
+    y += imageH + 50;
     ctx.fillStyle = "#30243f";
-    ctx.font = "700 32px Microsoft YaHei, Arial";
-    y = drawWrappedText(ctx, scene.text, padding, y, width - padding * 2, 48);
+    ctx.font = "800 38px Microsoft YaHei, Arial";
+    y = drawWrappedText(ctx, scene.text, padding, y, width - padding * 2, 58);
     ctx.fillStyle = "#9a651f";
-    ctx.font = "900 30px Microsoft YaHei, Arial";
-    y = drawWrappedText(ctx, `我的选择：${state.choices[index] || "未选择"}`, padding, y + 18, width - padding * 2, 42);
-    y += 46;
+    ctx.font = "900 34px Microsoft YaHei, Arial";
+    y = drawWrappedText(ctx, `我的选择：${state.choices[index] || "未选择"}`, padding, y + 26, width - padding * 2, 48);
+    y += 64;
   }
 
   drawCardBackground(ctx, cardX, y, cardW, 660);
