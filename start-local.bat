@@ -21,10 +21,11 @@ if not exist package.json (
 )
 
 echo Starting local server...
-echo Open this URL after the server starts:
+echo The browser will open automatically:
 echo http://localhost:3100
 echo.
 
+start "" "http://localhost:3100"
 npm.cmd run dev
 
 pause
