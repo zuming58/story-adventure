@@ -1545,6 +1545,42 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+function triggerMagicClick(target) {
+  const button = target?.closest?.("button");
+  if (!button || button.disabled || button.closest("#demo-toolbar")) {
+    return;
+  }
+
+  button.classList.remove("magic-pressed");
+  void button.offsetWidth;
+  button.classList.add("magic-pressed");
+  window.setTimeout(() => button.classList.remove("magic-pressed"), 520);
+
+  if (navigator.vibrate) {
+    navigator.vibrate(18);
+  }
+
+  const rect = button.getBoundingClientRect();
+  const centerX = rect.left + rect.width / 2;
+  const centerY = rect.top + rect.height / 2;
+  const count = 5;
+
+  for (let index = 0; index < count; index += 1) {
+    const sparkle = document.createElement("span");
+    const angle = (Math.PI * 2 * index) / count - Math.PI / 2;
+    const distance = 34 + index * 5;
+    sparkle.className = "magic-sparkle";
+    sparkle.textContent = "✦";
+    sparkle.style.left = `${centerX}px`;
+    sparkle.style.top = `${centerY}px`;
+    sparkle.style.setProperty("--spark-x", `${Math.cos(angle) * distance}px`);
+    sparkle.style.setProperty("--spark-y", `${Math.sin(angle) * distance}px`);
+    sparkle.style.animationDelay = `${index * 24}ms`;
+    document.body.append(sparkle);
+    sparkle.addEventListener("animationend", () => sparkle.remove(), { once: true });
+  }
+}
+
 genreButtons.forEach((button) => {
   button.addEventListener("click", () => setGenre(button));
 });
@@ -1591,6 +1627,8 @@ document.querySelector("#save-story").addEventListener("click", exportStoryLongI
 document.querySelector("#error-edit").addEventListener("click", () => showView("home"));
 document.querySelector("#error-retry").addEventListener("click", startAdventure);
 document.addEventListener("click", (event) => {
+  triggerMagicClick(event.target);
+
   const completeButton = event.target.closest("#complete-book-images");
   if (completeButton) {
     completeMissingStoryImages();
