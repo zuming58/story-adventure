@@ -47,14 +47,14 @@ OPENAI_MODEL=deepseek-chat
 IMAGE_API_KEY=你的 UU 生图 Key
 IMAGE_BASE_URL=https://uuapi.net/v1
 IMAGE_MODEL=gpt-image-2
-IMAGE_SIZE=1536x1024
+IMAGE_SIZE=1024x1024
 IMAGE_TIMEOUT_MS=120000
 IMAGE_PROVIDER=uu,uu-fast,uu-banana,volcengine
 
 UU_FAST_IMAGE_API_KEY=你的 UU gpt快速生图 Key
 UU_FAST_IMAGE_BASE_URL=https://uuapi.net/v1
 UU_FAST_IMAGE_MODEL=gpt-image-2
-UU_FAST_IMAGE_SIZE=1536x1024
+UU_FAST_IMAGE_SIZE=1024x1024
 UU_FAST_IMAGE_TIMEOUT_MS=120000
 
 UU_BANANA_IMAGE_API_KEY=你的 UU Nano Banana / Gemini Key
@@ -81,6 +81,7 @@ PORT=3100
 
 `IMAGE_PROVIDER=uu,uu-fast,uu-banana,volcengine` 表示优先调用原 UU 生图；失败、超时或返回错误时，服务端依次调用 UU gpt快速生图、UU Nano Banana Gemini 兼容接口，最后再用火山 Ark 兜底。Key 只放服务端环境变量，不会暴露给扫码用户。
 `uu-banana` 不走 `/images/generations`，而是走 Gemini 兼容的 `generateContent`；如果 UU 返回 `No available Gemini accounts`，服务端会继续调用后面的火山 Ark 兜底。
+当前 UU GPT 两个通道建议使用 `1024x1024`，本地测试比 `1536x1024` 更稳定；火山 Seedream 兜底仍可使用自己的高分辨率尺寸。
 
 4. 启动服务：
 

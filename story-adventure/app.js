@@ -107,6 +107,7 @@ function getInitialState() {
     playerName: "",
     usingFallback: false,
     imageJobs: {},
+    lockedImageProvider: "",
   };
 }
 
@@ -526,16 +527,20 @@ function renderBookImageStatus() {
     return;
   }
 
+  const providerText = state.lockedImageProvider
+    ? `插图风格已锁定：${getImageProviderLabel(state.lockedImageProvider)}`
+    : "插图风格会在第一张图生成后自动锁定";
+
   if (!missing.length) {
-    status.hidden = true;
-    status.innerHTML = "";
+    status.hidden = false;
+    status.innerHTML = `<span>${escapeHtml(providerText)}</span>`;
     return;
   }
 
   const running = missing.filter((item) => item.imageLoading || item.imageJobId).length;
   status.hidden = false;
   status.innerHTML = `
-    <span>${running ? "插图还在补齐中" : "还有插图没有生成成功"}：${missing.map((item) => `第 ${item.index + 1} 幕`).join("、")}</span>
+    <span>${escapeHtml(providerText)}；${running ? "插图还在补齐中" : "还有插图没有生成成功"}：${missing.map((item) => `第 ${item.index + 1} 幕`).join("、")}</span>
     <button id="complete-book-images" type="button">${running ? "继续查询缺失插图" : "补齐缺失插图"}</button>
   `;
 }
@@ -723,8 +728,9 @@ async function requestSceneImageV2(index, options = {}) {
       actNumber: index + 1,
       title: scene.title,
       text: scene.text,
-      imagePrompt: scene.imagePrompt,
+      imagePrompt: buildImagePromptWithContinuity(scene.imagePrompt, index),
       includeGuides: false,
+      preferredProvider: state.lockedImageProvider || "",
     });
 
     scene.imageJobId = job.id;
@@ -773,8 +779,9 @@ async function requestEndingImageV2(options = {}) {
       actNumber: TOTAL_ACTS,
       title: ending.title,
       text: ending.text,
-      imagePrompt: ending.imagePrompt,
+      imagePrompt: buildImagePromptWithContinuity(ending.imagePrompt, state.scenes.length),
       includeGuides: false,
+      preferredProvider: state.lockedImageProvider || "",
     });
 
     ending.imageJobId = job.id;
@@ -804,6 +811,24 @@ async function createImageJob(payload) {
   return data;
 }
 
+function buildImagePromptWithContinuity(basePrompt, sceneIndex) {
+  const previousScenes = state.scenes
+    .slice(0, Math.max(0, sceneIndex))
+    .map((scene, index) => `第${index + 1}幕：${scene.title}，${scene.summary || scene.text}`)
+    .join("；");
+  const storyClues = [state.opening ? `故事开头：${state.opening}` : "", previousScenes ? `前文线索：${previousScenes}` : ""]
+    .filter(Boolean)
+    .join("\n");
+
+  return [
+    basePrompt,
+    storyClues,
+    "连续性要求：沿用前文已经出现的主角、动物、怪物、伙伴或关键物品；同一角色要保持外貌、服装颜色、体型比例和气质一致；不要把主角画成另一个新角色。",
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
 async function getImageJob(jobId) {
   const response = await fetch(`/api/story-adventure/image-jobs/${encodeURIComponent(jobId)}`);
   const data = await response.json().catch(() => ({}));
@@ -826,9 +851,12 @@ function pollImageJob(jobId, target, startedAt = Date.now()) {
       if (job.status === "succeeded" && job.result?.imageUrl) {
         item.generatedImageUrl = job.result.imageUrl;
         item.imageUrl = job.result.imageUrl;
+        item.imageProvider = job.result.provider || "";
+        item.imageFallbackUsed = Boolean(job.result.fallbackUsed);
         item.imageLoading = false;
         item.imageStatus = "";
         item.imageError = "";
+        lockImageProvider(job.result.provider);
         state.allowExportWithMissingImages = false;
         saveStoryState();
         refreshIllustration(target.type, target.index);
@@ -877,6 +905,37 @@ function getImageTarget(target) {
     return state.ending;
   }
   return null;
+}
+
+function lockImageProvider(provider) {
+  const normalized = normalizeImageProvider(provider);
+  if (!normalized) {
+    return;
+  }
+
+  if (state.lockedImageProvider !== normalized) {
+    state.lockedImageProvider = normalized;
+    showToast(`插图风格已锁定：${getImageProviderLabel(normalized)}`);
+  }
+}
+
+function normalizeImageProvider(provider) {
+  const value = String(provider || "").trim().toLowerCase();
+  if (value === "openai") return "uu";
+  if (value === "uu-gpt-fast") return "uu-fast";
+  if (value === "banana" || value === "nano-banana") return "uu-banana";
+  if (value === "ark" || value === "seedream") return "volcengine";
+  return value;
+}
+
+function getImageProviderLabel(provider) {
+  const labels = {
+    uu: "UU 主通道",
+    "uu-fast": "UU 快速通道",
+    "uu-banana": "Banana",
+    volcengine: "火山 Seedream",
+  };
+  return labels[normalizeImageProvider(provider)] || provider || "当前模型";
 }
 
 function markImageFailed(item, message) {
