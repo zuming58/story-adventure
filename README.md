@@ -64,7 +64,9 @@ IMAGE_MODE=each_scene
 IMAGE_STORAGE_MODE=browser
 IMAGE_JOB_CONCURRENCY=2
 IMAGE_MAX_JOBS=300
-STORY_SESSION_CONCURRENCY=6
+STORY_SESSION_CONCURRENCY=8
+STORY_SESSION_TTL_MS=600000
+STORY_COMPLETED_COOLDOWN_MS=1200000
 ```
 
 `IMAGE_PROVIDER=uu,uu-fast,uu-banana,volcengine` 表示优先调用原 UU；失败后尝试 UU gpt快速生图；再失败则走 UU Nano Banana 的 Gemini 兼容接口；最后再调用火山 Ark 兜底。
@@ -72,7 +74,9 @@ STORY_SESSION_CONCURRENCY=6
 当前 UU GPT 两个通道建议使用 `1024x1024`，本地测试比 `1536x1024` 更稳定；火山 Seedream 兜底仍可使用自己的高分辨率尺寸。
 `uu-fast` 只需要单独配置 `UU_FAST_IMAGE_API_KEY`；如果不配置 fast 专用 URL、模型、尺寸和超时，会自动继承 `IMAGE_BASE_URL`、`IMAGE_MODEL`、`IMAGE_SIZE`、`IMAGE_TIMEOUT_MS`。
 `IMAGE_JOB_CONCURRENCY=2` 表示服务端最多同时跑 2 个生图任务，其余手机请求会排队，适合现场多人同时扫码，避免一次性打爆上游生图 API。
-`STORY_SESSION_CONCURRENCY=6` 表示现场最多同时放 6 组进入故事生成流程，后面的家庭会停在“排队中”页面，避免一开场全部挤进 AI 生成。
+`STORY_SESSION_CONCURRENCY=8` 表示现场最多同时放 8 组进入故事生成流程，后面的家庭会停在“排队中”页面，避免一开场全部挤进 AI 生成。只有点击“开始冒险”进入生成流程后才会占用通道，停在首页或输入页不会占用。
+`STORY_SESSION_TTL_MS=600000` 表示页面 10 分钟没有心跳后释放名额；正常等待故事或等待插图时页面会持续心跳，不会被误踢。
+`STORY_COMPLETED_COOLDOWN_MS=1200000` 表示同一浏览器完成一次故事后 20 分钟内不能重新开始新故事，但仍可继续查看和导出上次故事。
 
 `IMAGE_MODE` 可选：
 

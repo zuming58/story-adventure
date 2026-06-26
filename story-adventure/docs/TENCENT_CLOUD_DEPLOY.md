@@ -78,7 +78,9 @@ IMAGE_MODE=each_scene
 IMAGE_STORAGE_MODE=browser
 IMAGE_JOB_CONCURRENCY=2
 IMAGE_MAX_JOBS=300
-STORY_SESSION_CONCURRENCY=6
+STORY_SESSION_CONCURRENCY=8
+STORY_SESSION_TTL_MS=600000
+STORY_COMPLETED_COOLDOWN_MS=1200000
 PORT=3100
 ```
 
@@ -87,7 +89,9 @@ PORT=3100
 当前 UU GPT 两个通道建议使用 `1024x1024`，本地测试比 `1536x1024` 更稳定；火山 Seedream 兜底仍可使用自己的高分辨率尺寸。
 `uu-fast` 只需要单独配置 `UU_FAST_IMAGE_API_KEY`；如果不配置 fast 专用 URL、模型、尺寸和超时，会自动继承 `IMAGE_BASE_URL`、`IMAGE_MODEL`、`IMAGE_SIZE`、`IMAGE_TIMEOUT_MS`。
 `IMAGE_JOB_CONCURRENCY=2` 表示服务端最多同时跑 2 个生图任务，其余手机请求会排队，适合现场多人同时扫码，避免一次性打爆上游生图 API。现场如果仍然拥堵，可临时改成 `1`；如果通道很顺，可改成 `3`。
-`STORY_SESSION_CONCURRENCY=6` 表示现场最多同时放 6 组进入故事生成流程，后面的家庭会停在“排队中”页面。现场如果节奏太慢可改成 `8`，如果服务器压力大可改成 `4`。
+`STORY_SESSION_CONCURRENCY=8` 表示现场最多同时放 8 组进入故事生成流程，后面的家庭会停在“排队中”页面。现场笔记本如果也点开始生成，会占其中 1 个通道；只停在首页或输入页不占。想测试排队机制时，可以临时改成 `1`，用两台手机测试第二台是否进入等待页；正式现场再改回 `8`。
+`STORY_SESSION_TTL_MS=600000` 表示页面 10 分钟没有心跳后释放名额；正常等待故事或等待插图时页面会持续心跳，不会被误踢。
+`STORY_COMPLETED_COOLDOWN_MS=1200000` 表示同一浏览器完成一次故事后 20 分钟内不能重新开始新故事，但仍可继续查看和导出上次故事。
 
 4. 启动服务：
 

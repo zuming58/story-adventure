@@ -1,14 +1,18 @@
 const TOTAL_ACTS = 5;
 const STORAGE_KEY = "storyAdventure.currentStory.v1";
+const COMPLETION_LIMIT_KEY = "storyAdventure.completedAt.v1";
 const runtimeConfig = {
   imageMode: "each_scene",
   imageStorageMode: "browser",
-  storySessionConcurrency: 6,
+  storySessionConcurrency: 8,
+  storySessionTtlMs: 600000,
+  storyCompletedCooldownMs: 1200000,
 };
 const IMAGE_POLL_INTERVAL_MS = 3000;
 const IMAGE_SLOW_NOTICE_MS = 90000;
 const IMAGE_POLL_TIMEOUT_MS = 600000;
 const SESSION_POLL_INTERVAL_MS = 2500;
+const SESSION_HEARTBEAT_INTERVAL_MS = 30000;
 
 const views = {
   cover: document.querySelector("#cover-view"),
@@ -115,6 +119,8 @@ function getInitialState() {
     imageJobs: {},
     lockedImageProvider: "",
     storySessionId: "",
+    storySessionReleased: false,
+    completionRecordedAt: 0,
   };
 }
 
@@ -257,6 +263,8 @@ async function loadRuntimeConfig() {
       runtimeConfig.imageMode = config.imageMode || runtimeConfig.imageMode;
       runtimeConfig.imageStorageMode = config.imageStorageMode || runtimeConfig.imageStorageMode;
       runtimeConfig.storySessionConcurrency = config.storySessionConcurrency || runtimeConfig.storySessionConcurrency;
+      runtimeConfig.storySessionTtlMs = Number(config.storySessionTtlMs || runtimeConfig.storySessionTtlMs);
+      runtimeConfig.storyCompletedCooldownMs = Number(config.storyCompletedCooldownMs || runtimeConfig.storyCompletedCooldownMs);
     }
   } catch (error) {
     console.warn(error);
@@ -284,6 +292,12 @@ async function startAdventure() {
 
   if (opening.length < 3) {
     homeMessage.textContent = "请先写一个故事开头。";
+    return;
+  }
+
+  if (isCompletionCooldownActive()) {
+    homeMessage.textContent = getCompletionCooldownMessage();
+    showToast("现场体验每台设备暂时限玩一轮，可以继续查看上次故事。");
     return;
   }
 
@@ -322,6 +336,7 @@ async function beginQueuedAdventure() {
 }
 
 async function generateFirstSceneAfterAdmission() {
+  startStorySessionHeartbeat();
   document.querySelector("#loading-text").textContent = "AI 正在根据你的开头编织第一幕。";
   showView("loading");
 
@@ -335,6 +350,7 @@ async function generateFirstSceneAfterAdmission() {
     requestSceneImageV2(0);
   } catch (error) {
     console.warn(error);
+    finishCurrentStorySession();
     homeMessage.textContent = error.message || "这个开头暂时不适合儿童绘本，请换一个更安全、积极的开头。";
     showView("home");
   }
@@ -362,14 +378,37 @@ async function getStorySession(sessionId) {
 
 function finishCurrentStorySession() {
   const sessionId = state.storySessionId;
-  if (!sessionId) {
+  if (!sessionId || state.storySessionReleased) {
     return;
   }
 
   state.storySessionId = "";
+  state.storySessionReleased = true;
+  saveStoryState();
   fetch(`/api/story-adventure/sessions/${encodeURIComponent(sessionId)}/finish`, { method: "POST" }).catch((error) =>
     console.warn(error),
   );
+}
+
+function startStorySessionHeartbeat() {
+  const sessionId = state.storySessionId;
+  if (!sessionId || state.storySessionReleased) {
+    return;
+  }
+
+  window.setTimeout(async () => {
+    if (state.storySessionId !== sessionId || state.storySessionReleased) {
+      return;
+    }
+
+    try {
+      await getStorySession(sessionId);
+    } catch (error) {
+      console.warn(error);
+    }
+
+    startStorySessionHeartbeat();
+  }, SESSION_HEARTBEAT_INTERVAL_MS);
 }
 
 function pollStorySession(sessionId) {
@@ -399,7 +438,7 @@ function pollStorySession(sessionId) {
 
 function updateWaitingText(session) {
   const position = Number(session.queuePosition || 0);
-  const maxActive = Number(session.maxActive || runtimeConfig.storySessionConcurrency || 6);
+  const maxActive = Number(session.maxActive || runtimeConfig.storySessionConcurrency || 8);
   waitingText.textContent =
     position > 1
       ? `现场正在分批进入，前面还有 ${position - 1} 组。每次大约开放 ${maxActive} 组。`
@@ -598,7 +637,6 @@ function showEnding() {
 }
 
 function showNameEntry() {
-  finishCurrentStorySession();
   playerNameInput.value = state.playerName || "";
   nameMessage.textContent = "";
   showView("name");
@@ -620,6 +658,7 @@ function confirmPlayerName() {
 function showBook(options = {}) {
   renderBookContent();
   showView("book");
+  finalizeStorySessionIfReady();
 }
 
 function renderBookContent() {
@@ -660,6 +699,7 @@ function renderBookImageStatus() {
   if (!missing.length) {
     status.hidden = false;
     status.innerHTML = `<span>${escapeHtml(providerText)}</span>`;
+    finalizeStorySessionIfReady();
     return;
   }
 
@@ -986,6 +1026,7 @@ function pollImageJob(jobId, target, startedAt = Date.now()) {
         state.allowExportWithMissingImages = false;
         saveStoryState();
         refreshIllustration(target.type, target.index);
+        finalizeStorySessionIfReady();
         showToast("插图生成完成，已自动更新。");
         return;
       }
@@ -993,6 +1034,7 @@ function pollImageJob(jobId, target, startedAt = Date.now()) {
       if (job.status === "failed") {
         markImageFailed(item, "插图生成失败，可点重新生成");
         refreshIllustration(target.type, target.index);
+        finalizeStorySessionIfReady();
         return;
       }
 
@@ -1113,6 +1155,78 @@ function completeMissingStoryImages() {
   });
   renderBookImageStatus();
   showToast("正在补齐缺失插图，可以稍后再导出。");
+}
+
+function finalizeStorySessionIfReady() {
+  if (!state.ending || !views.book.classList.contains("active") || state.storySessionReleased) {
+    return;
+  }
+
+  if (hasPendingStoryImages()) {
+    return;
+  }
+
+  finishCurrentStorySession();
+  markStoryCompletedForCooldown();
+}
+
+function hasPendingStoryImages() {
+  return [...state.scenes, state.ending].some((item) => {
+    if (!item) {
+      return false;
+    }
+
+    if (item.generatedImageUrl) {
+      return false;
+    }
+
+    return Boolean(item.imageLoading || (item.imageJobId && item.imageCanRetry === false));
+  });
+}
+
+function markStoryCompletedForCooldown() {
+  if (state.completionRecordedAt) {
+    return;
+  }
+
+  const completedAt = Date.now();
+  state.completionRecordedAt = completedAt;
+  try {
+    localStorage.setItem(COMPLETION_LIMIT_KEY, String(completedAt));
+  } catch (error) {
+    console.warn(error);
+  }
+  saveStoryState();
+}
+
+function getCompletionCooldownRemainingMs() {
+  const completedAt = getLastCompletionTime();
+  if (!completedAt) {
+    return 0;
+  }
+
+  const remaining = runtimeConfig.storyCompletedCooldownMs - (Date.now() - completedAt);
+  return Math.max(0, remaining);
+}
+
+function getLastCompletionTime() {
+  const values = [Number(state.completionRecordedAt || 0)];
+  try {
+    values.push(Number(localStorage.getItem(COMPLETION_LIMIT_KEY) || 0));
+  } catch (error) {
+    console.warn(error);
+  }
+
+  return Math.max(...values.filter((value) => Number.isFinite(value)));
+}
+
+function isCompletionCooldownActive() {
+  return getCompletionCooldownRemainingMs() > 0;
+}
+
+function getCompletionCooldownMessage() {
+  const minutes = Math.max(1, Math.ceil(getCompletionCooldownRemainingMs() / 60000));
+  return `你已经完成过一次现场体验啦。为了让后面的同学也能生成插图，请约 ${minutes} 分钟后再开始新故事；也可以点“继续上次故事”回看和导出。`;
 }
 
 function resumePendingImageJobs() {
@@ -1599,7 +1713,10 @@ document.querySelector("#enter-story").addEventListener("click", () => showView(
 resumeStoryButton.addEventListener("click", restoreSavedStory);
 document.querySelector("#start-adventure").addEventListener("click", startAdventure);
 document.querySelector("#cancel-waiting").addEventListener("click", cancelWaiting);
-document.querySelector("#cancel-loading").addEventListener("click", () => showView("home"));
+document.querySelector("#cancel-loading").addEventListener("click", () => {
+  finishCurrentStorySession();
+  showView("home");
+});
 document.querySelector("#make-book").addEventListener("click", showNameEntry);
 document.querySelector("#confirm-book").addEventListener("click", confirmPlayerName);
 document.querySelector("#skip-name").addEventListener("click", () => {
@@ -1617,6 +1734,11 @@ document.querySelector("#review-story").addEventListener("click", () => {
   showView("scene");
 });
 document.querySelector("#restart-story").addEventListener("click", () => {
+  if (isCompletionCooldownActive()) {
+    showToast(getCompletionCooldownMessage());
+    return;
+  }
+
   finishCurrentStorySession();
   state = getInitialState();
   clearSavedStory();

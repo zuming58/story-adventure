@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 import { generateStoryAdventure } from "./lib/story-adventure.js";
 import { generateStoryImage } from "./lib/story-images.js";
 import { createImageJob, getImageJob } from "./lib/image-jobs.js";
-import { createStorySession, finishStorySession, getStorySession } from "./lib/story-sessions.js";
+import { createStorySession, finishStorySession, getStorySession, getStorySessionTtlMs } from "./lib/story-sessions.js";
 
 const rootDir = fileURLToPath(new URL(".", import.meta.url));
 const port = Number(process.env.PORT || 3100);
@@ -157,8 +157,19 @@ function getPublicStoryConfig() {
   return {
     imageMode: process.env.IMAGE_MODE || "each_scene",
     imageStorageMode: process.env.IMAGE_STORAGE_MODE || "browser",
-    storySessionConcurrency: Number(process.env.STORY_SESSION_CONCURRENCY || 6),
+    storySessionConcurrency: Number(process.env.STORY_SESSION_CONCURRENCY || 8),
+    storySessionTtlMs: getStorySessionTtlMs(),
+    storyCompletedCooldownMs: getStoryCompletedCooldownMs(),
   };
+}
+
+function getStoryCompletedCooldownMs() {
+  const value = Number(process.env.STORY_COMPLETED_COOLDOWN_MS || 20 * 60 * 1000);
+  if (!Number.isFinite(value)) {
+    return 20 * 60 * 1000;
+  }
+
+  return Math.min(24 * 60 * 60 * 1000, Math.max(0, Math.trunc(value)));
 }
 
 async function handleCreateImageJob(request, response) {
