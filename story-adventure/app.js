@@ -1162,26 +1162,12 @@ function finalizeStorySessionIfReady() {
     return;
   }
 
-  if (hasPendingStoryImages()) {
+  if (getMissingStoryImages().length) {
     return;
   }
 
   finishCurrentStorySession();
   markStoryCompletedForCooldown();
-}
-
-function hasPendingStoryImages() {
-  return [...state.scenes, state.ending].some((item) => {
-    if (!item) {
-      return false;
-    }
-
-    if (item.generatedImageUrl) {
-      return false;
-    }
-
-    return Boolean(item.imageLoading || (item.imageJobId && item.imageCanRetry === false));
-  });
 }
 
 function markStoryCompletedForCooldown() {
